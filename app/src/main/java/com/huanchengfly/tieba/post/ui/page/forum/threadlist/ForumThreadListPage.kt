@@ -199,9 +199,9 @@ private fun ThreadList(
         }
         itemsIndexed(
             items = items,
-            key = { index, (holder) ->
+            key = { _, (holder) ->
                 val (item) = holder
-                "${index}_${item.id}"
+                "${item.id}"
             },
             contentType = { _, (holder) ->
                 val (item) = holder
@@ -380,9 +380,11 @@ fun ForumThreadListPage(
                         )
                     )
                 },
+                enableSwipeLoadMore = false,
                 loadEnd = !hasMore,
                 lazyListState = lazyListState,
                 isEmpty = threadList.isEmpty(),
+                preloadCount = 8,
                 modifier = Modifier.weight(1f)
             ) {
                 ThreadList(

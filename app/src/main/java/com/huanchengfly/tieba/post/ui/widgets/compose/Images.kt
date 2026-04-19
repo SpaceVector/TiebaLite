@@ -2,11 +2,9 @@ package com.huanchengfly.tieba.post.ui.widgets.compose
 
 import android.content.Context
 import android.graphics.Color
-import android.util.Log
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -230,6 +228,8 @@ fun NetworkImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     photoViewData: PhotoViewData? = null,
+    photoViewDataProvider: (() -> PhotoViewData)? = null,
+    previewOriginUrl: String? = photoViewData?.data?.originUrl,
     contentScale: ContentScale = ContentScale.Fit,
     skipNetworkCheck: Boolean = false,
     enablePreview: Boolean = false,
@@ -237,7 +237,12 @@ fun NetworkImage(
     val context = LocalContext.current
 
     var shouldLoad by remember { mutableStateOf(shouldLoadImage(context, skipNetworkCheck)) }
-    val enableClick = remember(photoViewData, shouldLoad) { photoViewData != null || !shouldLoad }
+    val currentPhotoViewDataProvider by rememberUpdatedState(
+        newValue = photoViewDataProvider ?: photoViewData?.let { fixedData -> { fixedData } }
+    )
+    val enableClick = remember(photoViewData, photoViewDataProvider, shouldLoad) {
+        photoViewData != null || photoViewDataProvider != null || !shouldLoad
+    }
 
     val colorMask =
         if (ExtendedTheme.colors.isNightMode && context.appPreferences.imageDarkenWhenNightMode) {
@@ -280,54 +285,65 @@ fun NetworkImage(
             layoutSizeProvider = { layoutSize },
             layoutOffsetProvider = { layoutOffset },
             imageAspectRatioProvider = { imageAspectRatio },
-            originImageUri = photoViewData?.data?.originUrl
+            originImageUri = previewOriginUrl
         )
     }
 
-    Box(
-        modifier = Modifier
-            .pointerInput(enableClick) {
-                if (enableClick) {
-                    detectTapGestures(
-                        onLongPress = {
-                            isLongPressing = true
-                        },
-                        onPress = {
-                            tryAwaitRelease()
-                            isLongPressing = false
-                        },
-                        onTap = {
-                            if (!shouldLoad) {
-                                shouldLoad = true
-                            } else if (photoViewData != null) {
+    val gestureModifier =
+        if (enableClick) {
+            Modifier.pointerInput(enableClick) {
+                detectTapGestures(
+                    onLongPress = {
+                        isLongPressing = true
+                    },
+                    onPress = {
+                        tryAwaitRelease()
+                        isLongPressing = false
+                    },
+                    onTap = {
+                        if (!shouldLoad) {
+                            shouldLoad = true
+                        } else {
+                            val resolvedPhotoViewData = currentPhotoViewDataProvider?.invoke()
+                            if (resolvedPhotoViewData != null) {
                                 context.goToActivity<PhotoViewActivity> {
                                     putExtra(
                                         EXTRA_PHOTO_VIEW_DATA,
-                                        photoViewData
+                                        resolvedPhotoViewData
                                     )
                                 }
                             }
                         }
-                    )
-                }
+                    }
+                )
             }
-            .pointerInput(Unit) {
-                detectDragGesturesAfterLongPress { change, dragAmount ->
-                    Log.i("NetworkImage", "dragAmount: $dragAmount")
+        } else {
+            Modifier
+        }
+
+    val previewTrackingModifier =
+        if (enablePreview) {
+            Modifier
+                .onSizeChanged {
+                    layoutSize = it
                 }
-            }
+                .onGloballyPositioned {
+                    layoutOffset = it.positionInWindow()
+                }
+        } else {
+            Modifier
+        }
+
+    Box(
+        modifier = Modifier
+            .then(gestureModifier)
             .then(modifier)
     ) {
         AsyncImage(
             request = request,
             modifier = Modifier
                 .fillMaxSize()
-                .onSizeChanged {
-                    layoutSize = it
-                }
-                .onGloballyPositioned {
-                    layoutOffset = it.positionInWindow()
-                },
+                .then(previewTrackingModifier),
             contentDescription = contentDescription,
             contentScale = contentScale,
             state = state,
@@ -341,18 +357,42 @@ fun NetworkImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     photoViewDataProvider: (() -> PhotoViewData)? = null,
+    previewOriginUrlProvider: (() -> String?)? = null,
     contentScale: ContentScale = ContentScale.Fit,
     skipNetworkCheck: Boolean = false,
     enablePreview: Boolean = false,
 ) {
     val imageUri by rememberUpdatedState(newValue = imageUriProvider())
-    val photoViewData by rememberUpdatedState(newValue = photoViewDataProvider?.invoke())
+    val previewOriginUrl by rememberUpdatedState(newValue = previewOriginUrlProvider?.invoke())
 
     NetworkImage(
         imageUri = imageUri,
         contentDescription = contentDescription,
         modifier = modifier,
-        photoViewData = photoViewData,
+        photoViewDataProvider = photoViewDataProvider,
+        previewOriginUrl = previewOriginUrl,
+        contentScale = contentScale,
+        skipNetworkCheck = skipNetworkCheck,
+        enablePreview = enablePreview
+    )
+}
+
+@Composable
+fun NetworkImage(
+    imageUriProvider: () -> String,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    photoViewDataProvider: (() -> PhotoViewData)? = null,
+    contentScale: ContentScale = ContentScale.Fit,
+    skipNetworkCheck: Boolean = false,
+    enablePreview: Boolean = false,
+) {
+    NetworkImage(
+        imageUriProvider = imageUriProvider,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        photoViewDataProvider = photoViewDataProvider,
+        previewOriginUrlProvider = null,
         contentScale = contentScale,
         skipNetworkCheck = skipNetworkCheck,
         enablePreview = enablePreview

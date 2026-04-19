@@ -169,11 +169,9 @@ internal class DefaultVideoPlayerController(
     private val previewSeekDebouncer = FlowDebouncer<Long>(200L)
 
     init {
-        exoPlayer.playWhenReady = initialState.isPlaying
-
         coroutineScope.launch {
             previewSeekDebouncer.collect { position ->
-                previewExoPlayer.seekTo(position)
+                _previewExoPlayer?.seekTo(position)
             }
         }
     }
@@ -182,14 +180,13 @@ internal class DefaultVideoPlayerController(
         Log.i("VideoPlayerController", "$this initialize")
         released.set(false)
         val currentState = _state.value
-        exoPlayer.playWhenReady = currentState.isPlaying
         initialStateRunner = {
-            exoPlayer.seekTo(currentState.currentPosition)
+            _exoPlayer?.seekTo(currentState.currentPosition)
         }
-        if (this::source.isInitialized) {
+        if (this::source.isInitialized && (_exoPlayer != null || playerView != null)) {
             setSource(source)
         }
-        if (playerView != null) {
+        if (playerView != null && _exoPlayer != null) {
             playerViewAvailable(playerView!!)
         }
     }

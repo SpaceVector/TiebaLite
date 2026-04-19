@@ -81,7 +81,9 @@ fun ConcernPage(
         LoadMoreLayout(
             isLoading = isLoadingMore,
             onLoadMore = { viewModel.send(ConcernUiIntent.LoadMore(nextPageTag)) },
+            enableSwipeLoadMore = false,
             lazyListState = lazyListState,
+            preloadCount = 8,
         ) {
             MyLazyColumn(
                 state = lazyListState,
