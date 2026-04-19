@@ -57,14 +57,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.github.panpf.sketch.compose.AsyncImage
-import com.google.accompanist.placeholder.material.placeholder
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.activities.BaseActivity
 import com.huanchengfly.tieba.post.arch.collectIn
@@ -77,6 +74,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.ActionItem
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.BaseTextField
 import com.huanchengfly.tieba.post.ui.widgets.compose.CounterTextField
+import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.Dialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogNegativeButton
 import com.huanchengfly.tieba.post.ui.widgets.compose.Toolbar
@@ -88,6 +86,7 @@ import com.huanchengfly.tieba.post.utils.PermissionUtils
 import com.huanchengfly.tieba.post.utils.PickMediasRequest
 import com.huanchengfly.tieba.post.utils.StringUtil
 import com.huanchengfly.tieba.post.utils.ThemeUtil
+import com.huanchengfly.tieba.post.utils.configureTransparentSystemBars
 import com.huanchengfly.tieba.post.utils.registerPickMediasLauncher
 import com.huanchengfly.tieba.post.utils.requestPermission
 import com.huanchengfly.tieba.post.utils.shouldUsePhotoPicker
@@ -189,23 +188,15 @@ class EditProfileActivity : BaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             TiebaLiteTheme {
-                val systemUiController = rememberSystemUiController()
                 SideEffect {
-                    systemUiController.apply {
-                        setStatusBarColor(
-                            Color.Transparent,
-                            darkIcons = ThemeUtil.isStatusBarFontDark()
-                        )
-                        setNavigationBarColor(
-                            Color.Transparent,
-                            darkIcons = ThemeUtil.isNavigationBarFontDark()
-                        )
-                    }
+                    configureTransparentSystemBars(
+                        statusBarDarkIcons = ThemeUtil.isStatusBarFontDark(),
+                        navigationBarDarkIcons = ThemeUtil.isNavigationBarFontDark(),
+                    )
                 }
-                PageEditProfile(viewModel, onBackPressed = { onBackPressed() })
+                PageEditProfile(viewModel, onBackPressed = ::dispatchBackPress)
             }
         }
         handler.post {
@@ -236,18 +227,7 @@ class EditProfileActivity : BaseActivity() {
                     pickMediasLauncher.launch(PickMediasRequest(mediaType = PickMediasRequest.ImageOnly))
                 } else {
                     requestPermission {
-                        permissions = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                            listOf(
-                                PermissionUtils.READ_EXTERNAL_STORAGE,
-                                PermissionUtils.WRITE_EXTERNAL_STORAGE
-                            )
-                        } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                            listOf(
-                                PermissionUtils.READ_EXTERNAL_STORAGE
-                            )
-                        } else {
-                            listOf(PermissionUtils.READ_MEDIA_IMAGES)
-                        }
+                        permissions = PermissionUtils.readImagesPermissions()
                         description = context.getString(R.string.tip_permission_storage)
                         onGranted = {
                             pickMediasLauncher.launch(PickMediasRequest(mediaType = PickMediasRequest.ImageOnly))
@@ -293,7 +273,7 @@ fun EditProfileCard(
                     .size(64.dp)
                     .clip(CircleShape)
                     .align(Alignment.CenterHorizontally)
-                    .placeholder(visible = loading)
+                    .loadingPlaceholder(visible = loading)
             ) {
                 AsyncImage(
                     imageUri = StringUtil.getAvatarUrl(portrait),
@@ -361,7 +341,7 @@ fun EditProfileCard(
                             end.linkTo(parent.end)
                             width = Dimension.fillToConstraints
                         }
-                        .placeholder(visible = loading)
+                        .loadingPlaceholder(visible = loading)
                 )
 
                 Text(
@@ -381,7 +361,7 @@ fun EditProfileCard(
                             end.linkTo(parent.end)
                             width = Dimension.fillToConstraints
                         }
-                        .placeholder(visible = loading)
+                        .loadingPlaceholder(visible = loading)
                 ) {
                     BaseTextField(
                         value = nickName,
@@ -413,7 +393,7 @@ fun EditProfileCard(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) { onModifySex?.invoke() }
-                        .placeholder(visible = loading)
+                        .loadingPlaceholder(visible = loading)
                 ) {
                     Text(
                         text = stringResource(
@@ -458,7 +438,7 @@ fun EditProfileCard(
                             end.linkTo(parent.end)
                             width = Dimension.fillToConstraints
                         }
-                        .placeholder(visible = loading),
+                        .loadingPlaceholder(visible = loading),
                 )
             }
         }
@@ -486,7 +466,7 @@ fun PageEditProfile(
             topBar = {
                 Toolbar(
                     title = stringResource(id = R.string.title_activity_edit_profile),
-                    navigationIcon = { BackNavigationIcon { onBackPressed() } },
+                    navigationIcon = { BackNavigationIcon(onBackPressed) },
                     actions = {
                         ActionItem(
                             icon = ImageVector.vectorResource(id = R.drawable.ic_round_save_24),
@@ -567,7 +547,7 @@ fun PageEditProfile(
             topBar = {
                 Toolbar(
                     title = stringResource(id = R.string.title_activity_edit_profile),
-                    navigationIcon = { BackNavigationIcon { onBackPressed() } }
+                    navigationIcon = { BackNavigationIcon(onBackPressed) }
                 )
             },
         ) { contentPadding ->

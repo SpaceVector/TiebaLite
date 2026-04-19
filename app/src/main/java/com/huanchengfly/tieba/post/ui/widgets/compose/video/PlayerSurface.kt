@@ -8,7 +8,8 @@ import androidx.media3.ui.PlayerView
 @Composable
 fun PlayerSurface(
     modifier: Modifier = Modifier,
-    onPlayerViewAvailable: (PlayerView) -> Unit = {}
+    onPlayerViewAvailable: (PlayerView) -> Unit = {},
+    onPlayerViewRelease: (PlayerView) -> Unit = {}
 ) {
     AndroidView(
         factory = { context ->
@@ -17,6 +18,9 @@ fun PlayerSurface(
                 onPlayerViewAvailable(this)
             }
         },
-        modifier = modifier
+        modifier = modifier,
+        onRelease = {
+            onPlayerViewRelease(it)
+        }
     )
 }

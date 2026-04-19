@@ -598,6 +598,20 @@ data class FixedThreshold(private val offset: Dp) : ThresholdConfig {
 }
 
 /**
+ * A fractional threshold will be placed at [fraction] between the two anchors.
+ */
+@Immutable
+data class FractionalThreshold(private val fraction: Float) : ThresholdConfig {
+    init {
+        require(fraction in 0f..1f) { "Fraction must be between 0 and 1." }
+    }
+
+    override fun Density.computeThreshold(fromValue: Float, toValue: Float): Float {
+        return fromValue + (toValue - fromValue) * fraction
+    }
+}
+
+/**
  *  Given an offset x and a set of anchors, return a list of anchors:
  *   1. [ ] if the set of anchors is empty,
  *   2. [ x' ] if x is equal to one of the anchors, accounting for a small rounding error, where x'

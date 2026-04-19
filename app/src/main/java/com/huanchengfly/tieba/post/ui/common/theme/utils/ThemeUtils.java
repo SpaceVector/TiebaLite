@@ -25,16 +25,8 @@ import com.huanchengfly.tieba.post.ui.common.theme.interfaces.ExtraRefreshable;
 import com.huanchengfly.tieba.post.ui.common.theme.interfaces.ThemeSwitcher;
 import com.huanchengfly.tieba.post.ui.common.theme.interfaces.Tintable;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-
 public class ThemeUtils {
     private static ThemeSwitcher mThemeSwitcher;
-    private static Field sRecycler;
-    private static Method sRecycleViewClearMethod;
-    private static Field sRecyclerBin;
-    private static Method sListViewClearMethod;
 
     public static Drawable tintDrawable(Drawable drawable, ColorStateList colorStateList) {
         if (drawable == null) return null;
@@ -97,7 +89,6 @@ public class ThemeUtils {
         }
     }
 
-    @SuppressLint("PrivateApi")
     private static void refreshView(View view, ExtraRefreshable extraRefreshable) {
         if (view == null) return;
         view.destroyDrawingCache();
@@ -113,29 +104,9 @@ public class ThemeUtils {
                 extraRefreshable.refreshSpecificView(view);
             }
             if (view instanceof AbsListView) {
-                try {
-                    if (sRecyclerBin == null) {
-                        sRecyclerBin = AbsListView.class.getDeclaredField("mRecycler");
-                        sRecyclerBin.setAccessible(true);
-                    }
-                    if (sListViewClearMethod == null) {
-                        sListViewClearMethod = Class.forName("android.widget.AbsListView$RecycleBin")
-                                .getDeclaredMethod("clear");
-                        sListViewClearMethod.setAccessible(true);
-                    }
-                    sListViewClearMethod.invoke(sRecyclerBin.get(view));
-                } catch (NoSuchFieldException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                } catch (NoSuchMethodException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                }
-                ListAdapter adapter = ((AbsListView) view).getAdapter();
+                AbsListView absListView = (AbsListView) view;
+                absListView.invalidateViews();
+                ListAdapter adapter = absListView.getAdapter();
                 while (adapter instanceof WrapperListAdapter) {
                     adapter = ((WrapperListAdapter) adapter).getWrappedAdapter();
                 }
@@ -144,26 +115,11 @@ public class ThemeUtils {
                 }
             }
             if (view instanceof RecyclerView) {
-                try {
-                    sRecycler = RecyclerView.class.getDeclaredField("mRecycler");
-                    sRecycler.setAccessible(true);
-                    sRecycleViewClearMethod = Class.forName("androidx.recyclerview.widget.RecyclerView$Recycler")
-                            .getDeclaredMethod("clear");
-                    sRecycleViewClearMethod.setAccessible(true);
-                    sRecycleViewClearMethod.invoke(sRecycler.get(view));
-                } catch (NoSuchMethodException e) {
-                    e.printStackTrace();
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
-                } catch (NoSuchFieldException e) {
-                    e.printStackTrace();
-                } catch (InvocationTargetException e) {
-                    e.printStackTrace();
-                } catch (ClassNotFoundException e) {
-                    e.printStackTrace();
-                }
                 RecyclerView recyclerView = (RecyclerView) view;
                 recyclerView.getRecycledViewPool().clear();
+                if (recyclerView.getAdapter() != null) {
+                    recyclerView.getAdapter().notifyDataSetChanged();
+                }
                 for (int i = 0; i < recyclerView.getItemDecorationCount(); i++) {
                     RecyclerView.ItemDecoration itemDecoration = recyclerView.getItemDecorationAt(i);
                     if (itemDecoration instanceof Tintable) {

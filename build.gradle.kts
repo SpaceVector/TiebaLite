@@ -9,9 +9,17 @@ plugins {
     autowire(libs.plugins.hilt.android) apply false
     autowire(libs.plugins.com.squareup.wire) apply false
 
-    autowire(libs.plugins.com.autonomousapps.dependency.analysis)
+    autowire(libs.plugins.com.autonomousapps.dependency.analysis) apply false
+}
+
+if (providers.gradleProperty("enableDependencyAnalysis")
+        .map(String::toBoolean)
+        .orElse(false)
+        .get()
+) {
+    apply(plugin = "com.autonomousapps.dependency-analysis")
 }
 
 tasks.register<Delete>("clean") {
-    delete(rootProject.buildDir)
+    delete(layout.buildDirectory)
 }

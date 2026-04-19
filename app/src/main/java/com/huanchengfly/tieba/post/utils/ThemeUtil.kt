@@ -12,6 +12,7 @@ import android.webkit.WebView
 import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.annotation.StyleRes
+import androidx.core.content.ContextCompat
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.coordinatorlayout.widget.CoordinatorLayout
@@ -179,16 +180,15 @@ object ThemeUtil {
             return
         }
         val context = swipeRefreshLayout.context
-        val resources = context.resources
-        if (resources != null) {
-            swipeRefreshLayout.setProgressBackgroundColorSchemeColor(resources.getColor(R.color.color_swipe_refresh_bg))
-            swipeRefreshLayout.setColorSchemeColors(
-                ThemeUtils.getColorByAttr(
-                    context,
-                    R.attr.colorAccent
-                )
+        swipeRefreshLayout.setProgressBackgroundColorSchemeColor(
+            ContextCompat.getColor(context, R.color.color_swipe_refresh_bg)
+        )
+        swipeRefreshLayout.setColorSchemeColors(
+            ThemeUtils.getColorByAttr(
+                context,
+                R.attr.colorAccent
             )
-        }
+        )
     }
 
     @JvmStatic

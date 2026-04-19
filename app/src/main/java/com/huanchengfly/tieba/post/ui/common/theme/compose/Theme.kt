@@ -465,12 +465,14 @@ fun TiebaLiteTheme(
         }
     }
 
-    val useDynamicTheme = isDynamicTheme && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-
-    val extendedColors = if (!useDynamicTheme || ThemeUtil.isTranslucentTheme(theme)) {
-        getThemeColorForTheme(theme)
-    } else {
+    val extendedColors = if (
+        isDynamicTheme &&
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+        !ThemeUtil.isTranslucentTheme(theme)
+    ) {
         getDynamicColor(theme, dynamicTonalPalette(context))
+    } else {
+        getThemeColorForTheme(theme)
     }
 
     val colors = getColorPalette(isDarkColorPalette, extendedColors)

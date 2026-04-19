@@ -180,6 +180,7 @@ internal class DefaultVideoPlayerController(
 
     fun initialize() {
         Log.i("VideoPlayerController", "$this initialize")
+        released.set(false)
         val currentState = _state.value
         exoPlayer.playWhenReady = currentState.isPlaying
         initialStateRunner = {
@@ -297,13 +298,14 @@ internal class DefaultVideoPlayerController(
     }
 
     private fun updateDurationAndPosition() {
-        if (exoPlayer.playbackState == STATE_READY || exoPlayer.playbackState == STATE_ENDED) {
+        val player = _exoPlayer ?: return
+        if (player.playbackState == STATE_READY || player.playbackState == STATE_ENDED) {
             _state.set {
                 copy(
-                    duration = exoPlayer.duration.coerceAtLeast(0),
-                    currentPosition = exoPlayer.currentPosition.coerceAtLeast(0),
-                    secondaryProgress = exoPlayer.bufferedPosition.coerceAtLeast(0),
-                    isPlaying = exoPlayer.isPlaying
+                    duration = player.duration.coerceAtLeast(0),
+                    currentPosition = player.currentPosition.coerceAtLeast(0),
+                    secondaryProgress = player.bufferedPosition.coerceAtLeast(0),
+                    isPlaying = player.isPlaying
                 )
             }
         }
@@ -341,12 +343,22 @@ internal class DefaultVideoPlayerController(
     }
 
     fun playerViewAvailable(playerView: PlayerView) {
+        if (this.playerView !== playerView) {
+            this.playerView?.player = null
+        }
         this.playerView = playerView
         playerView.player = exoPlayer
         playerView.setBackgroundColor(videoPlayerBackgroundColor)
 
         if (waitPlayerViewToPrepare.compareAndSet(true, false)) {
             prepare()
+        }
+    }
+
+    fun playerViewRelease(playerView: PlayerView) {
+        if (this.playerView === playerView) {
+            playerView.player = null
+            this.playerView = null
         }
     }
 
@@ -372,8 +384,16 @@ internal class DefaultVideoPlayerController(
     override fun release() {
         Log.i("VideoPlayerController", "$this release")
         if (released.compareAndSet(false, true)) {
-            exoPlayer.release()
-            previewExoPlayer.release()
+            cancelAutoHideControls()
+            updateDurationAndPositionJob?.cancel()
+            updateDurationAndPositionJob = null
+            playerView?.player = null
+            playerView = null
+            _exoPlayer?.run {
+                removeListener(playerListener)
+                release()
+            }
+            _previewExoPlayer?.release()
             _exoPlayer = null
             _previewExoPlayer = null
         }

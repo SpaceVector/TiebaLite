@@ -27,13 +27,16 @@ import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.flatMapConcat
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
+import java.io.File
 
 enum class ReplyPanelType {
     NONE,
@@ -126,29 +129,43 @@ class ReplyViewModel @Inject constructor() :
         }
 
         private fun ReplyUiIntent.UploadImages.producePartialChange() =
-            ImageUploader(forumName)
-                .uploadImages(
-                    imageUris.map {
-                        FileUtil.getRealPathFromUri(
+            flow<ReplyPartialChange.UploadImages> {
+                emit(ReplyPartialChange.UploadImages.Start)
+                val uploadFiles = mutableListOf<File>()
+                try {
+                    uploadFiles += imageUris.map {
+                        FileUtil.copyUriToCacheFile(
                             App.INSTANCE,
-                            Uri.parse(it)
+                            Uri.parse(it),
+                            prefix = "reply_upload_"
                         )
-                    },
-                    isOriginImage
-                )
-                .map<List<UploadPictureResultBean>, ReplyPartialChange.UploadImages> {
-                    ReplyPartialChange.UploadImages.Success(it)
-                }
-                .onStart { emit(ReplyPartialChange.UploadImages.Start) }
-                .catch {
-                    it.printStackTrace()
-                    emit(
-                        ReplyPartialChange.UploadImages.Failure(
-                            it.getErrorCode(),
-                            it.getErrorMessage()
-                        )
+                    }
+                    emitAll(
+                        ImageUploader(forumName)
+                            .uploadImages(
+                                uploadFiles.map(File::getAbsolutePath),
+                                isOriginImage
+                            )
+                            .map<List<UploadPictureResultBean>, ReplyPartialChange.UploadImages> {
+                                ReplyPartialChange.UploadImages.Success(it)
+                            }
                     )
+                } finally {
+                    uploadFiles.forEach { file ->
+                        if (file.exists()) {
+                            file.delete()
+                        }
+                    }
                 }
+            }.catch {
+                it.printStackTrace()
+                emit(
+                    ReplyPartialChange.UploadImages.Failure(
+                        it.getErrorCode(),
+                        it.getErrorMessage()
+                    )
+                )
+            }
 
         private fun ReplyUiIntent.SwitchPanel.producePartialChange() =
             flowOf(ReplyPartialChange.SwitchPanel(panelType))

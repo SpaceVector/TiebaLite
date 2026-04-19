@@ -37,7 +37,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.accompanist.placeholder.material.placeholder
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.models.protos.hasAgree
 import com.huanchengfly.tieba.post.arch.GlobalEvent
@@ -58,6 +57,7 @@ import com.huanchengfly.tieba.post.ui.page.destinations.UserProfilePageDestinati
 import com.huanchengfly.tieba.post.ui.widgets.compose.Container
 import com.huanchengfly.tieba.post.ui.widgets.compose.FeedCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
+import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.ProvideContentColor
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
@@ -393,7 +393,7 @@ private fun ThreadListItemPlaceholder() {
                     .padding(top = 3.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .wrapContentSize()
-                    .placeholder(visible = true)
+                    .loadingPlaceholder(visible = true)
                     .padding(vertical = 1.dp, horizontal = 4.dp)
             )
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -401,13 +401,13 @@ private fun ThreadListItemPlaceholder() {
                     text = "",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .placeholder(visible = true)
+                        .loadingPlaceholder(visible = true)
                 )
                 Text(
                     text = stringResource(id = R.string.hot_num, "666"),
                     style = MaterialTheme.typography.caption,
                     color = ExtendedTheme.colors.textSecondary,
-                    modifier = Modifier.placeholder(visible = true)
+                    modifier = Modifier.loadingPlaceholder(visible = true)
                 )
             }
         }

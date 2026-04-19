@@ -25,9 +25,6 @@ import com.github.panpf.sketch.compose.AsyncImage
 import com.github.panpf.sketch.fetch.newResourceUri
 import com.github.panpf.sketch.request.DisplayRequest
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
-import com.google.accompanist.placeholder.PlaceholderHighlight
-import com.google.accompanist.placeholder.material.fade
-import com.google.accompanist.placeholder.material.placeholder
 import com.huanchengfly.tieba.post.utils.ImageUtil
 
 object Sizes {
@@ -93,10 +90,10 @@ fun AvatarPlaceholder(
         data = ImageUtil.getPlaceHolder(LocalContext.current, 0),
         size = size,
         contentDescription = null,
-        modifier = modifier.placeholder(
+        modifier = modifier.loadingPlaceholder(
             visible = true,
-            highlight = PlaceholderHighlight.fade(),
-            shape = CircleShape
+            shape = CircleShape,
+            useFadeHighlight = true,
         )
     )
 }

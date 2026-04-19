@@ -10,6 +10,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.content.res.Configuration.SCREENLAYOUT_SIZE_MASK
 import android.os.Build
+import android.util.TypedValue
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
@@ -26,8 +27,17 @@ import kotlinx.collections.immutable.toImmutableList
 import java.io.File
 import kotlin.math.roundToInt
 
-private val Context.scaledDensity: Float
-    get() = resources.displayMetrics.scaledDensity
+private fun Context.spToPxCompat(value: Float): Float =
+    TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, value, resources.displayMetrics)
+
+private fun Context.pxToSpCompat(value: Float): Float {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        TypedValue.deriveDimension(TypedValue.COMPLEX_UNIT_SP, value, resources.displayMetrics)
+    } else {
+        @Suppress("DEPRECATION")
+        value / resources.displayMetrics.scaledDensity
+    }
+}
 
 fun Float.dpToPx(): Int =
     dpToPxFloat().roundToInt()
@@ -36,10 +46,10 @@ fun Float.dpToPxFloat(): Float =
     this * App.ScreenInfo.DENSITY + 0.5f
 
 fun Float.spToPx(context: Context = App.INSTANCE): Int =
-    (this * context.scaledDensity + 0.5f).roundToInt()
+    (context.spToPxCompat(this) + 0.5f).roundToInt()
 
 fun Float.spToPxFloat(context: Context = App.INSTANCE): Float =
-    this * context.scaledDensity + 0.5f
+    context.spToPxCompat(this) + 0.5f
 
 fun Float.pxToDp(): Int =
     (this / App.ScreenInfo.DENSITY + 0.5f).roundToInt()
@@ -48,7 +58,7 @@ fun Float.pxToDpFloat(): Float =
     this / App.ScreenInfo.DENSITY + 0.5f
 
 fun Float.pxToSp(context: Context = App.INSTANCE): Int =
-    (this / context.scaledDensity + 0.5f).roundToInt()
+    (context.pxToSpCompat(this) + 0.5f).roundToInt()
 
 fun Int.dpToPx(): Int = this.toFloat().dpToPx()
 
@@ -58,7 +68,7 @@ fun Int.pxToDp(): Int = this.toFloat().pxToDp()
 
 fun Int.pxToSp(context: Context = App.INSTANCE): Int = this.toFloat().pxToSp(context)
 
-fun Float.pxToSpFloat(): Float = this / App.INSTANCE.resources.displayMetrics.scaledDensity + 0.5f
+fun Float.pxToSpFloat(): Float = App.INSTANCE.pxToSpCompat(this) + 0.5f
 
 fun Int.pxToSpFloat(): Float = this.toFloat().pxToSpFloat()
 

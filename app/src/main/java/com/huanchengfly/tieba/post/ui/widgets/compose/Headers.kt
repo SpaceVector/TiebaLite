@@ -21,9 +21,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.accompanist.placeholder.PlaceholderHighlight
-import com.google.accompanist.placeholder.material.fade
-import com.google.accompanist.placeholder.material.placeholder
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 
 @Composable
@@ -37,18 +34,18 @@ fun UserHeaderPlaceholder(
         name = {
             Text(
                 text = "Username",
-                modifier = Modifier.placeholder(
+                modifier = Modifier.loadingPlaceholder(
                     visible = true,
-                    highlight = PlaceholderHighlight.fade(),
+                    useFadeHighlight = true,
                 )
             )
         },
         desc = {
             Text(
                 text = "Desc",
-                modifier = Modifier.placeholder(
+                modifier = Modifier.loadingPlaceholder(
                     visible = true,
-                    highlight = PlaceholderHighlight.fade(),
+                    useFadeHighlight = true,
                 )
             )
         }

@@ -8,6 +8,7 @@ import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.text.TextUtils
 import android.util.DisplayMetrics
@@ -15,9 +16,11 @@ import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowInsets
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.OnBackPressedCallback
 import androidx.annotation.CallSuper
 import androidx.annotation.ColorInt
 import androidx.annotation.Keep
@@ -56,6 +59,15 @@ abstract class BaseActivity : AppCompatActivity(), ExtraRefreshable, CoroutineSc
     private var isActivityRunning = true
     private var customStatusColor = -1
     private var statusBarTinted = false
+    private val backPressedCallback = object : OnBackPressedCallback(true) {
+        override fun handleOnBackPressed() {
+            if (!HandleBackUtil.handleBackPress(this@BaseActivity)) {
+                isEnabled = false
+                onBackPressedDispatcher.onBackPressed()
+                isEnabled = true
+            }
+        }
+    }
 
     val appPreferences: AppPreferencesUtils by lazy { AppPreferencesUtils.getInstance(this) }
 
@@ -66,14 +78,14 @@ abstract class BaseActivity : AppCompatActivity(), ExtraRefreshable, CoroutineSc
 
     //禁止app字体大小跟随系统字体大小调节
     override fun getResources(): Resources {
-        val fontScale = appPreferences.fontScale
         val resources = super.getResources()
-        if (resources.configuration.fontScale != fontScale) {
-            val configuration = resources.configuration
-            configuration.fontScale = fontScale
-            resources.updateConfiguration(configuration, resources.displayMetrics)
+        val fontScale = appPreferences.fontScale
+        if (resources.configuration.fontScale == fontScale) {
+            return resources
         }
-        return resources
+        val configuration = Configuration(resources.configuration)
+        configuration.fontScale = fontScale
+        return createConfigurationContext(configuration).resources
     }
 
     protected fun showDialog(dialog: Dialog): Boolean {
@@ -105,6 +117,7 @@ abstract class BaseActivity : AppCompatActivity(), ExtraRefreshable, CoroutineSc
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        onBackPressedDispatcher.addCallback(this, backPressedCallback)
         if (isNeedFixBg) fixBackground()
         getDeviceDensity()
         INSTANCE.addActivity(this)
@@ -169,9 +182,7 @@ abstract class BaseActivity : AppCompatActivity(), ExtraRefreshable, CoroutineSc
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             android.R.id.home -> {
-                if (!HandleBackUtil.handleBackPress(this)) {
-                    finish()
-                }
+                dispatchBackPress()
                 return true
             }
         }
@@ -199,24 +210,34 @@ abstract class BaseActivity : AppCompatActivity(), ExtraRefreshable, CoroutineSc
         }
     }
 
-    override fun onBackPressed() {
-        if (!HandleBackUtil.handleBackPress(this)) {
-            super.onBackPressed()
-        }
+    fun dispatchBackPress() {
+        onBackPressedDispatcher.onBackPressed()
     }
 
     open fun setTitle(newTitle: String?) {}
     open fun setSubTitle(newTitle: String?) {}
 
     private fun getDeviceDensity() {
-        val metrics = DisplayMetrics()
-        windowManager.defaultDisplay.getMetrics(metrics)
-        val width = metrics.widthPixels
-        val height = metrics.heightPixels
+        val metrics = resources.displayMetrics
+        val (width, height) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val windowMetrics = windowManager.currentWindowMetrics
+            val insets = windowMetrics.windowInsets.getInsetsIgnoringVisibility(
+                WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout()
+            )
+            val bounds = windowMetrics.bounds
+            val safeWidth = (bounds.width() - insets.left - insets.right).coerceAtLeast(0)
+            val safeHeight = (bounds.height() - insets.top - insets.bottom).coerceAtLeast(0)
+            safeWidth to safeHeight
+        } else {
+            val legacyMetrics = DisplayMetrics()
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.getMetrics(legacyMetrics)
+            legacyMetrics.widthPixels to legacyMetrics.heightPixels
+        }
         App.ScreenInfo.EXACT_SCREEN_HEIGHT = height
         App.ScreenInfo.EXACT_SCREEN_WIDTH = width
         val density = metrics.density
-        App.ScreenInfo.DENSITY = metrics.density
+        App.ScreenInfo.DENSITY = density
         App.ScreenInfo.SCREEN_HEIGHT = (height / density).toInt()
         App.ScreenInfo.SCREEN_WIDTH = (width / density).toInt()
     }

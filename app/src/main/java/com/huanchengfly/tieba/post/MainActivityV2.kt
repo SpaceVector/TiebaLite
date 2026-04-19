@@ -1,10 +1,7 @@
 package com.huanchengfly.tieba.post
 
 import android.annotation.SuppressLint
-import android.app.job.JobInfo
-import android.app.job.JobScheduler
 import android.content.BroadcastReceiver
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.drawable.ColorDrawable
@@ -31,7 +28,6 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.Surface
-import androidx.compose.material.SwipeableDefaults
 import androidx.compose.material.Text
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -67,7 +63,6 @@ import com.github.panpf.sketch.fetch.newFileUri
 import com.google.accompanist.navigation.material.BottomSheetNavigator
 import com.google.accompanist.navigation.material.ExperimentalMaterialNavigationApi
 import com.google.accompanist.navigation.material.ModalBottomSheetLayout
-import com.google.accompanist.systemuicontroller.SystemUiController
 import com.huanchengfly.tieba.post.api.retrofit.exception.getErrorMessage
 import com.huanchengfly.tieba.post.arch.BaseComposeActivity
 import com.huanchengfly.tieba.post.arch.GlobalEvent
@@ -92,10 +87,10 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Dialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogNegativeButton
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogPositiveButton
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
+import com.huanchengfly.tieba.post.ui.widgets.compose.SwipeableDefaults as AppSwipeableDefaults
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.utils.AccountUtil
 import com.huanchengfly.tieba.post.utils.ClientUtils
-import com.huanchengfly.tieba.post.utils.JobServiceUtil
 import com.huanchengfly.tieba.post.utils.PermissionUtils
 import com.huanchengfly.tieba.post.utils.PickMediasRequest
 import com.huanchengfly.tieba.post.utils.QuickPreviewUtil
@@ -144,7 +139,7 @@ val LocalDestination = compositionLocalOf<DestinationSpec<*>?> { null }
 @OptIn(ExperimentalMaterialApi::class, ExperimentalMaterialNavigationApi::class)
 @Composable
 fun rememberBottomSheetNavigator(
-    animationSpec: AnimationSpec<Float> = SwipeableDefaults.AnimationSpec,
+    animationSpec: AnimationSpec<Float> = AppSwipeableDefaults.AnimationSpec,
     skipHalfExpanded: Boolean = false
 ): BottomSheetNavigator {
     val sheetState = rememberModalBottomSheetState(
@@ -296,16 +291,8 @@ class MainActivityV2 : BaseComposeActivity() {
                 newIntentFilter(NotifyJobService.ACTION_NEW_MESSAGE),
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
-            startService(Intent(this, NotifyJobService::class.java))
-            val builder = JobInfo.Builder(
-                JobServiceUtil.getJobId(this),
-                ComponentName(this, NotifyJobService::class.java)
-            )
-                .setPersisted(true)
-                .setPeriodic(30 * 60 * 1000L)
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
-            val jobScheduler = getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            jobScheduler.schedule(builder.build())
+            NotifyJobService.scheduleImmediate(this)
+            NotifyJobService.schedulePeriodic(this)
         }
         handler.postDelayed({
             requestNotificationPermission()
@@ -323,8 +310,8 @@ class MainActivityV2 : BaseComposeActivity() {
         intent?.let { checkIntent(it) }
     }
 
-    override fun onCreateContent(systemUiController: SystemUiController) {
-        super.onCreateContent(systemUiController)
+    override fun onCreateContent() {
+        super.onCreateContent()
         fetchAccount()
         initAutoSign()
     }

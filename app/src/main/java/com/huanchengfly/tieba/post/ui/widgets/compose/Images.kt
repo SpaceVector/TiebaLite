@@ -137,7 +137,11 @@ private fun PreviewImage(
             }
         }
 
-        FullScreen {
+        FullScreen(
+            onBack = {
+                showPreview = false
+            }
+        ) {
             val (layoutWidthPx, layoutHeightPx) = layoutSizeProvider()
             val layoutWidthDp = remember(layoutWidthPx, density) {
                 with(density) { layoutWidthPx.toDp() }

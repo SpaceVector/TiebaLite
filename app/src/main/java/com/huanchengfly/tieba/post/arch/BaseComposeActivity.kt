@@ -1,6 +1,7 @@
 package com.huanchengfly.tieba.post.arch
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import android.widget.Toast
@@ -11,24 +12,27 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
-import com.google.accompanist.systemuicontroller.SystemUiController
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import com.huanchengfly.tieba.post.activities.BaseActivity
 import com.huanchengfly.tieba.post.ui.common.theme.compose.TiebaLiteTheme
 import com.huanchengfly.tieba.post.ui.common.windowsizeclass.WindowSizeClass
 import com.huanchengfly.tieba.post.ui.common.windowsizeclass.calculateWindowSizeClass
 import com.huanchengfly.tieba.post.utils.AccountUtil.LocalAccountProvider
 import com.huanchengfly.tieba.post.utils.ThemeUtil
+import com.huanchengfly.tieba.post.utils.configureTransparentSystemBars
 
 abstract class BaseComposeActivityWithParcelable<DATA : Parcelable> : BaseComposeActivityWithData<DATA>() {
     abstract val dataExtraKey: String
+    abstract val dataClass: Class<DATA>
 
     override fun parseData(intent: Intent): DATA? {
-        return intent.extras?.getParcelable(dataExtraKey)
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.extras?.getParcelable(dataExtraKey, dataClass)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.extras?.getParcelable(dataExtraKey)
+        }
     }
 }
 
@@ -61,26 +65,17 @@ abstract class BaseComposeActivity : BaseActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContent {
             TiebaLiteTheme {
-                val systemUiController = rememberSystemUiController()
                 SideEffect {
-                    systemUiController.apply {
-                        setStatusBarColor(
-                            Color.Transparent,
-                            darkIcons = ThemeUtil.isStatusBarFontDark()
-                        )
-                        setNavigationBarColor(
-                            Color.Transparent,
-                            darkIcons = ThemeUtil.isNavigationBarFontDark(),
-                            navigationBarContrastEnforced = false
-                        )
-                    }
+                    configureTransparentSystemBars(
+                        statusBarDarkIcons = ThemeUtil.isStatusBarFontDark(),
+                        navigationBarDarkIcons = ThemeUtil.isNavigationBarFontDark(),
+                    )
                 }
 
                 LaunchedEffect(key1 = "onCreateContent") {
-                    onCreateContent(systemUiController)
+                    onCreateContent()
                 }
 
                 LocalAccountProvider {
@@ -96,12 +91,8 @@ abstract class BaseComposeActivity : BaseActivity() {
 
     /**
      * 在创建内容前执行
-     *
-     * @param systemUiController SystemUiController
      */
-    open fun onCreateContent(
-        systemUiController: SystemUiController
-    ) {}
+    open fun onCreateContent() {}
 
     @Composable
     abstract fun Content()

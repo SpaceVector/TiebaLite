@@ -4,8 +4,11 @@ import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
 import android.app.job.JobParameters
 import android.app.job.JobService
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.Intent.ACTION_VIEW
@@ -18,6 +21,7 @@ import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.MsgBean
 import com.huanchengfly.tieba.post.pendingIntentFlagImmutable
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
+import com.huanchengfly.tieba.post.utils.JobServiceUtil
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -157,8 +161,33 @@ class NotifyJobService : JobService() {
         const val CHANNEL_TOTAL = "total"
         const val ID_REPLY = 20
         const val ID_AT = 21
+        private const val IMMEDIATE_JOB_ID = 200001
         private const val CHANNEL_GROUP_NAME = "消息通知"
         private const val CHANNEL_REPLY = "2"
         private const val CHANNEL_REPLY_NAME = "回复我的"
+
+        fun scheduleImmediate(context: Context) {
+            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            val builder = JobInfo.Builder(
+                IMMEDIATE_JOB_ID,
+                ComponentName(context, NotifyJobService::class.java)
+            )
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setMinimumLatency(0L)
+                .setOverrideDeadline(0L)
+            jobScheduler.schedule(builder.build())
+        }
+
+        fun schedulePeriodic(context: Context) {
+            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            val builder = JobInfo.Builder(
+                JobServiceUtil.getJobId(context),
+                ComponentName(context, NotifyJobService::class.java)
+            )
+                .setPersisted(true)
+                .setPeriodic(30 * 60 * 1000L)
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+            jobScheduler.schedule(builder.build())
+        }
     }
 }

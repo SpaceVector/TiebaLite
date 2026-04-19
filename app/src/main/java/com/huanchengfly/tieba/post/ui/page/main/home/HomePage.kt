@@ -70,7 +70,6 @@ import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
-import com.google.accompanist.placeholder.placeholder
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.arch.GlobalEvent
 import com.huanchengfly.tieba.post.arch.collectPartialAsState
@@ -88,6 +87,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Button
 import com.huanchengfly.tieba.post.ui.widgets.compose.Chip
 import com.huanchengfly.tieba.post.ui.widgets.compose.ConfirmDialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.ErrorScreen
+import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
 import com.huanchengfly.tieba.post.ui.widgets.compose.MenuState
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyVerticalGrid
@@ -203,7 +203,7 @@ private fun ForumItemPlaceholder(
                     .clip(CircleShape)
                     .size(40.dp)
                     .align(CenterVertically)
-                    .placeholder(visible = true, color = ExtendedTheme.colors.chip),
+                    .loadingPlaceholder(visible = true, color = ExtendedTheme.colors.chip),
             )
             Spacer(modifier = Modifier.width(14.dp))
         }
@@ -213,7 +213,7 @@ private fun ForumItemPlaceholder(
             modifier = Modifier
                 .weight(1f)
                 .align(CenterVertically)
-                .placeholder(visible = true, color = ExtendedTheme.colors.chip),
+                .loadingPlaceholder(visible = true, color = ExtendedTheme.colors.chip),
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1,
@@ -228,7 +228,7 @@ private fun ForumItemPlaceholder(
                 )
                 .padding(vertical = 4.dp)
                 .align(CenterVertically)
-                .placeholder(visible = true, color = ExtendedTheme.colors.chip)
+                .loadingPlaceholder(visible = true, color = ExtendedTheme.colors.chip)
         ) {
             Text(
                 text = "0",
@@ -704,7 +704,7 @@ private fun HomePageSkeletonScreen(
             ) {
                 Header(
                     text = stringResource(id = R.string.title_top_forum),
-                    modifier = Modifier.placeholder(
+                    modifier = Modifier.loadingPlaceholder(
                         visible = true,
                         color = ExtendedTheme.colors.chip
                     ),
@@ -728,7 +728,7 @@ private fun HomePageSkeletonScreen(
             Column {
                 Header(
                     text = stringResource(id = R.string.forum_list_title),
-                    modifier = Modifier.placeholder(
+                    modifier = Modifier.loadingPlaceholder(
                         visible = true,
                         color = ExtendedTheme.colors.chip
                     ),

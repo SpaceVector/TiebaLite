@@ -79,9 +79,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
-import com.google.accompanist.placeholder.PlaceholderHighlight
-import com.google.accompanist.placeholder.material.fade
-import com.google.accompanist.placeholder.material.placeholder
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.models.protos.frsPage.ForumInfo
 import com.huanchengfly.tieba.post.arch.ImmutableHolder
@@ -108,6 +105,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.Button
 import com.huanchengfly.tieba.post.ui.widgets.compose.ClickMenu
 import com.huanchengfly.tieba.post.ui.widgets.compose.ConfirmDialog
+import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.FeedCardPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.MenuScope
@@ -190,9 +188,9 @@ private fun ForumHeaderPlaceholder(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(100))
-                        .placeholder(
+                        .loadingPlaceholder(
                             visible = true,
-                            highlight = PlaceholderHighlight.fade(),
+                            useFadeHighlight = true,
                         )
                         .padding(horizontal = 18.dp, vertical = 6.dp)
                 ) {
@@ -934,9 +932,9 @@ fun LoadingPlaceholder(
                     ) {
                         Text(
                             text = it,
-                            modifier = Modifier.placeholder(
+                            modifier = Modifier.loadingPlaceholder(
                                 visible = true,
-                                highlight = PlaceholderHighlight.fade(),
+                                useFadeHighlight = true,
                             ),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,

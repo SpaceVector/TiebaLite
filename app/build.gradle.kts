@@ -35,13 +35,12 @@ wire {
 }
 
 android {
-    buildToolsVersion = "34.0.0"
-    compileSdk = 34
+    buildToolsVersion = "35.0.0"
+    compileSdk = 36
     defaultConfig {
         applicationId = "com.huanchengfly.tieba.post"
         minSdk = 21
-        //noinspection OldTargetApi
-        targetSdk = 34
+        targetSdk = 36
         versionCode = applicationVersionCode
         versionName = applicationVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -51,6 +50,7 @@ android {
         manifestPlaceholders["is_self_build"] = "$isSelfBuild"
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
     signingConfigs {
@@ -97,11 +97,13 @@ android {
         jvmTarget = "11"
         freeCompilerArgs += listOf(
             "-P",
-            "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=" + project.buildDir.absolutePath + "/compose_metrics"
+            "plugin:androidx.compose.compiler.plugins.kotlin:reportsDestination=" +
+                    layout.buildDirectory.get().asFile.absolutePath + "/compose_metrics"
         )
         freeCompilerArgs += listOf(
             "-P",
-            "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=" + project.buildDir.absolutePath + "/compose_metrics"
+            "plugin:androidx.compose.compiler.plugins.kotlin:metricsDestination=" +
+                    layout.buildDirectory.get().asFile.absolutePath + "/compose_metrics"
         )
         freeCompilerArgs += listOf(
             "-P", "plugin:androidx.compose.compiler.plugins.kotlin:stabilityConfigurationPath=" +
@@ -132,6 +134,8 @@ android {
 }
 
 dependencies {
+    val composeBom = platform(compose.bom)
+
     //Local Files
 //    implementation fileTree(include: ["*.jar"], dir: "libs")
 
@@ -160,8 +164,6 @@ dependencies {
     kapt(androidx.hilt.compiler)
 
     implementation(accompanist.drawablepainter)
-    implementation(accompanist.insets.ui)
-    implementation(accompanist.systemuicontroller)
     implementation(accompanist.placeholder.material)
 
     implementation(sketch.core)
@@ -172,8 +174,8 @@ dependencies {
 
     implementation(zoomimage.compose.sketch)
 
-    implementation(compose.bom)
-    androidTestImplementation(compose.bom)
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
 
     runtimeOnly(compose.runtime.tracing)
     implementation(compose.animation)
@@ -191,7 +193,7 @@ dependencies {
 
     // UI Tests
     androidTestImplementation(compose.ui.test.junit4)
-    debugRuntimeOnly(compose.ui.test.manifest)
+    debugImplementation(compose.ui.test.manifest)
 
     implementation(androidx.constraintlayout.compose)
 

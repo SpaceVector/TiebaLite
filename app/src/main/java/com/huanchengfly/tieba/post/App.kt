@@ -117,15 +117,14 @@ class App : Application(), SketchFactory {
 
     //禁止app字体大小跟随系统字体大小调节
     override fun getResources(): Resources {
-        //INSTANCE = this
-        val fontScale = appPreferences.fontScale
         val resources = super.getResources()
-        if (resources.configuration.fontScale != fontScale) {
-            val configuration = resources.configuration
-            configuration.fontScale = fontScale
-            resources.updateConfiguration(configuration, resources.displayMetrics)
+        val fontScale = appPreferences.fontScale
+        if (resources.configuration.fontScale == fontScale) {
+            return resources
         }
-        return resources
+        val configuration = Configuration(resources.configuration)
+        configuration.fontScale = fontScale
+        return createConfigurationContext(configuration).resources
     }
 
     /**

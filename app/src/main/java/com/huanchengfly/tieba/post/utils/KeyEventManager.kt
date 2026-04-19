@@ -2,6 +2,7 @@ package com.huanchengfly.tieba.post.utils
 
 import android.view.KeyEvent
 import android.view.View
+import com.huanchengfly.tieba.post.R
 
 private class KeyEventManager<V : View> : View.OnKeyListener {
     private val keyEventMapping = mutableMapOf<Int, ((V) -> Unit)>()
@@ -31,24 +32,14 @@ fun <V : View> V.bindKeyEvent(keyCodes: List<Int>, action: (V) -> Unit) {
     }
 }
 
-private val View.onKeyListener: View.OnKeyListener?
-    get() {
-        return runCatching {
-            val viewClazz = View::class.java
-            val listenerInfoClazz = Class.forName("android.view.View.ListenerInfo")
-            val getListenerInfoMethod = viewClazz.getDeclaredMethod("getListenerInfo")
-            val mOnKeyListenerField = listenerInfoClazz.getDeclaredField("mOnKeyListener")
-            getListenerInfoMethod.isAccessible = true
-            mOnKeyListenerField.isAccessible = true
-            val listenerInfo = getListenerInfoMethod.invoke(this)
-            mOnKeyListenerField.get(listenerInfo) as View.OnKeyListener?
-        }.getOrNull()
-    }
-
 private fun <V : View> V.getKeyEventManager(): KeyEventManager<V> {
-    return if (onKeyListener !is KeyEventManager<*>) {
-        KeyEventManager<V>().also { setOnKeyListener(it) }
-    } else {
-        onKeyListener as KeyEventManager<V>
+    val existingManager = getTag(R.id.view_key_event_manager_tag) as? KeyEventManager<*>
+    if (existingManager != null) {
+        @Suppress("UNCHECKED_CAST")
+        return existingManager as KeyEventManager<V>
+    }
+    return KeyEventManager<V>().also {
+        setTag(R.id.view_key_event_manager_tag, it)
+        setOnKeyListener(it)
     }
 }

@@ -1,10 +1,11 @@
 package com.huanchengfly.tieba.post.services
 
 import android.Manifest
-import android.app.IntentService
 import android.app.PendingIntent
+import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
@@ -22,17 +23,16 @@ import com.huanchengfly.tieba.post.utils.AccountUtil
 import com.huanchengfly.tieba.post.utils.ProgressListener
 import com.huanchengfly.tieba.post.utils.SingleAccountSigner
 import com.huanchengfly.tieba.post.utils.extension.addFlag
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.runBlocking
-import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.launch
 
-class OKSignService : IntentService(TAG), CoroutineScope, ProgressListener {
-    private var job: Job = Job()
-    override val coroutineContext: CoroutineContext
-        get() = Dispatchers.Main + job
+class OKSignService : Service(), ProgressListener {
+    private val serviceJob = SupervisorJob()
+    private var signJob: Job? = null
 
     private var lastSignData: SignDataBean? = null
 
@@ -40,45 +40,59 @@ class OKSignService : IntentService(TAG), CoroutineScope, ProgressListener {
         NotificationManagerCompat.from(this)
     }
 
+    override fun onBind(intent: Intent?): IBinder? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.i(TAG, "onStartCommand")
-        if (intent?.action == ACTION_START_SIGN) {
-            startForeground(
-                NOTIFICATION_ID,
-                buildNotification(
-                    getString(R.string.title_loading_data),
-                    getString(R.string.text_please_wait)
-                ).build()
-            )
+        if (intent?.action != ACTION_START_SIGN) {
+            if (signJob?.isActive != true) {
+                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+                stopSelf()
+            }
+            return START_NOT_STICKY
         }
-        return super.onStartCommand(intent, flags, startId)
-    }
-
-    override fun onHandleIntent(intent: Intent?) {
-        Log.i(TAG, "onHandleWork")
-        if (intent?.action == ACTION_START_SIGN) {
-            val loginInfo = AccountUtil.getLoginInfo()
-            if (loginInfo != null) {
-                runBlocking {
-                    SingleAccountSigner(
-                        this@OKSignService,
-                        AccountUtil.getLoginInfo()!!
-                    )
-                        .apply {
-                            setProgressListener(this@OKSignService)
-                        }
-                        .start()
-                }
-            } else {
+        if (signJob?.isActive == true) {
+            Log.i(TAG, "sign task already running, ignore duplicate start")
+            return START_NOT_STICKY
+        }
+        startForeground(
+            NOTIFICATION_ID,
+            buildNotification(
+                getString(R.string.title_loading_data),
+                getString(R.string.text_please_wait)
+            ).build()
+        )
+        val loginInfo = AccountUtil.getLoginInfo()
+        if (loginInfo == null) {
+            updateNotification(
+                getString(R.string.title_oksign_fail),
+                getString(R.string.text_login_first)
+            )
+            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+            stopSelf()
+            return START_NOT_STICKY
+        }
+        signJob = kotlinx.coroutines.CoroutineScope(serviceJob + Dispatchers.IO).launch {
+            try {
+                SingleAccountSigner(this@OKSignService, loginInfo)
+                    .apply {
+                        setProgressListener(this@OKSignService)
+                    }
+                    .start()
+            } catch (e: Throwable) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "sign task failed", e)
                 updateNotification(
                     getString(R.string.title_oksign_fail),
-                    getString(R.string.text_login_first)
+                    e.message ?: getString(R.string.title_unknown_error)
                 )
-                ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_DETACH)
+                ServiceCompat.stopForeground(this@OKSignService, ServiceCompat.STOP_FOREGROUND_DETACH)
+            } finally {
+                signJob = null
+                stopSelf()
             }
-        } else {
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         }
+        return START_NOT_STICKY
     }
 
     private fun createNotificationChannel() {
@@ -165,7 +179,7 @@ class OKSignService : IntentService(TAG), CoroutineScope, ProgressListener {
 
     override fun onDestroy() {
         super.onDestroy()
-        coroutineContext.cancel()
+        serviceJob.cancel()
     }
 
     override fun onProgressStart(signDataBean: SignDataBean, current: Int, total: Int) {

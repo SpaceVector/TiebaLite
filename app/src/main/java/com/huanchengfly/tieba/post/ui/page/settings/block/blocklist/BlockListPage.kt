@@ -41,7 +41,6 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.accompanist.placeholder.material.placeholder
 import com.google.gson.reflect.TypeToken
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.arch.collectPartialAsState
@@ -56,6 +55,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.PagerTabIndicator
+import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.PromptDialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.TabRow
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
@@ -278,12 +278,12 @@ private fun BlockItemPlaceholder() {
         Icon(
             imageVector = Icons.Outlined.Block,
             contentDescription = null,
-            modifier = Modifier.placeholder(visible = true)
+            modifier = Modifier.loadingPlaceholder(visible = true)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = stringResource(id = R.string.title_block_settings),
-            modifier = Modifier.placeholder(visible = true)
+            modifier = Modifier.loadingPlaceholder(visible = true)
         )
     }
 }

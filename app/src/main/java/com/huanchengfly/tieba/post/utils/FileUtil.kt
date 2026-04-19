@@ -2,13 +2,10 @@ package com.huanchengfly.tieba.post.utils
 
 import android.app.DownloadManager
 import android.content.ContentResolver
-import android.content.ContentUris
 import android.content.Context
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.provider.DocumentsContract
-import android.provider.MediaStore
 import android.text.TextUtils
 import android.webkit.URLUtil
 import com.huanchengfly.tieba.post.R
@@ -54,9 +51,7 @@ object FileUtil {
      * @return
      */
     fun getFilePath(context: Context, dir: String): String {
-        var directoryPath = ""
-        //判断SD卡是否可用
-        directoryPath = if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
+        val directoryPath = if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
             context.getExternalFilesDir(dir)!!.absolutePath
         } else {
             context.filesDir.toString() + File.separator + dir
@@ -68,95 +63,41 @@ object FileUtil {
         return directoryPath
     }
 
-    fun getFilePathByUri(context: Context, uri: Uri): String? {
-        val path: String?
-        if (ContentResolver.SCHEME_FILE == uri.scheme) {
-            path = uri.path
-            return path
-        }
-        if (ContentResolver.SCHEME_CONTENT == uri.scheme) {
-            if (DocumentsContract.isDocumentUri(context, uri)) {
-                if (isExternalStorageDocument(uri)) {
-                    val docId = DocumentsContract.getDocumentId(uri)
-                    val split =
-                        docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-                    val type = split[0]
-                    if ("primary".equals(type, ignoreCase = true)) {
-                        path = Environment.getExternalStorageDirectory().toString() + "/" + split[1]
-                        return path
-                    }
-                } else if (isDownloadsDocument(uri)) {
-                    val id = DocumentsContract.getDocumentId(uri)
-                    val contentUri = ContentUris.withAppendedId(
-                        Uri.parse("content://downloads/public_downloads"),
-                        java.lang.Long.valueOf(id)
-                    )
-                    path = getDataColumn(context, contentUri, null, null)
-                    return path
-                } else if (isMediaDocument(uri)) {
-                    val docId = DocumentsContract.getDocumentId(uri)
-                    val split =
-                        docId.split(":".toRegex()).dropLastWhile { it.isEmpty() }.toTypedArray()
-                    val type = split[0]
-                    var contentUri: Uri? = null
-                    if ("image" == type) {
-                        contentUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-                    } else if ("video" == type) {
-                        contentUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
-                    } else if ("audio" == type) {
-                        contentUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-                    }
-                    val selection = "_id=?"
-                    val selectionArgs = arrayOf(split[1])
-                    path = getDataColumn(context, contentUri, selection, selectionArgs)
-                    return path
-                }
-            }
-        }
-        return null
-    }
-
-    private fun getDataColumn(
+    @JvmStatic
+    fun copyUriToCacheFile(
         context: Context,
-        uri: Uri?,
-        selection: String?,
-        selectionArgs: Array<String>?,
-    ): String? {
-        val column = "_data"
-        val projection = arrayOf(column)
-        context.contentResolver.query(uri!!, projection, selection, selectionArgs, null)
-            .use { cursor ->
-                if (cursor != null && cursor.moveToFirst()) {
-                    val column_index = cursor.getColumnIndexOrThrow(column)
-                    return cursor.getString(column_index)
-                }
+        uri: Uri,
+        prefix: String = "uri_",
+        suffix: String = ".tmp",
+    ): File {
+        val tempFile = File.createTempFile(prefix, suffix, context.cacheDir)
+        val inputStream = when (uri.scheme) {
+            ContentResolver.SCHEME_FILE -> uri.path?.let { FileInputStream(File(it)) }
+            else -> context.contentResolver.openInputStream(uri)
+        } ?: throw IOException("Unable to open uri: $uri")
+        inputStream.use { input ->
+            tempFile.outputStream().use { output ->
+                input.copyTo(output)
             }
-        return null
+        }
+        return tempFile
     }
 
-    private fun isExternalStorageDocument(uri: Uri): Boolean {
-        return "com.android.externalstorage.documents" == uri.authority
-    }
-
-    private fun isDownloadsDocument(uri: Uri): Boolean {
-        return "com.android.providers.downloads.documents" == uri.authority
-    }
-
-    private fun isMediaDocument(uri: Uri): Boolean {
-        return "com.android.providers.media.documents" == uri.authority
+    fun getFilePathByUri(context: Context, uri: Uri): String? {
+        return runCatching {
+            when (uri.scheme) {
+                ContentResolver.SCHEME_FILE -> uri.path
+                else -> copyUriToCacheFile(context, uri, prefix = "uri_path_").absolutePath
+            }
+        }.getOrNull()
     }
 
     @JvmStatic
     fun getRealPathFromUri(context: Context, contentUri: Uri?): String {
-        val proj = arrayOf(MediaStore.Images.Media.DATA)
-        context.contentResolver.query(contentUri!!, proj, null, null, null).use { cursor ->
-            if (cursor != null) {
-                val column_index = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-                cursor.moveToFirst()
-                return cursor.getString(column_index)
-            }
+        if (contentUri == null) {
+            return ""
         }
-        return ""
+        return getFilePathByUri(context, contentUri).orEmpty()
     }
 
     fun downloadBySystem(context: Context, fileType: Int, url: String?) {
@@ -172,12 +113,8 @@ object FileUtil {
     ) {
         // 指定下载地址
         val request = DownloadManager.Request(Uri.parse(url))
-        // 允许媒体扫描，根据下载的文件类型被加入相册、音乐等媒体库
-        request.allowScanningByMediaScanner()
         // 设置通知的显示类型，下载进行时和完成后显示通知
         request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-        // 允许该记录在下载管理界面可见
-        request.setVisibleInDownloadsUi(true)
         // 允许漫游时下载
         request.setAllowedOverRoaming(false)
         // 设置下载文件保存的路径和文件名
@@ -205,15 +142,11 @@ object FileUtil {
         askPermission(
             context,
             PermissionData(
-                Arrays.asList(
-                    PermissionUtils.READ_EXTERNAL_STORAGE,
-                    PermissionUtils.WRITE_EXTERNAL_STORAGE
-                ),
+                Arrays.asList(PermissionUtils.WRITE_EXTERNAL_STORAGE),
                 context.getString(R.string.tip_permission_storage_download)
             )
         ) {
             downloadBySystemWithPermission(context, fileType, url, fileName)
-            null
         }
     }
 
@@ -240,7 +173,7 @@ object FileUtil {
             return false
         }
         try {
-            val fos = FileOutputStream(file)
+            val fos = FileOutputStream(file, append)
             fos.write(content.toByteArray())
             fos.flush()
             fos.close()

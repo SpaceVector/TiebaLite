@@ -56,17 +56,19 @@ object PermissionUtils {
     const val READ_MEDIA_IMAGES = "android.permission.READ_MEDIA_IMAGES"
     const val POST_NOTIFICATIONS = "android.permission.POST_NOTIFICATIONS"
 
+    fun readImagesPermissions(): List<String> {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            listOf(READ_MEDIA_IMAGES)
+        } else {
+            listOf(READ_EXTERNAL_STORAGE)
+        }
+    }
+
     /**
      * Turn permissions into text.
      */
     fun transformText(context: Context, permissions: List<String>): List<String> {
         val permissionNames: MutableList<String> = mutableListOf()
-        if (context == null) {
-            return permissionNames
-        }
-        if (permissions == null) {
-            return permissionNames
-        }
         for (permission in permissions) {
             when (permission) {
                 Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE -> {
@@ -174,7 +176,7 @@ object PermissionUtils {
                     }
                 }
 
-                Permission.READ_CALL_LOG, Permission.WRITE_CALL_LOG, Permission.PROCESS_OUTGOING_CALLS -> {
+                Permission.READ_CALL_LOG, Permission.WRITE_CALL_LOG, PROCESS_OUTGOING_CALLS -> {
                     val hint =
                         context.getString(if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) R.string.common_permission_call_logs else R.string.common_permission_phone)
                     if (!permissionNames.contains(hint)) {

@@ -1,5 +1,6 @@
 package com.huanchengfly.tieba.post.utils
 
+import com.huanchengfly.tieba.post.App
 import android.os.Environment
 import android.os.StatFs
 import java.io.File
@@ -35,9 +36,11 @@ object DeviceUtils {
 
     fun getTotalSDCardSize(): Float {
         return runCatching {
-            if (Environment.getExternalStorageState().equals("mounted")) {
-                val path = Environment.getExternalStorageDirectory().path
-                val stat = StatFs(path)
+            val storagePath = App.INSTANCE.getExternalFilesDir(null)?.path
+                ?.takeIf { Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED }
+                ?: App.INSTANCE.filesDir.path
+            if (storagePath.isNotBlank()) {
+                val stat = StatFs(storagePath)
                 val blockSize = stat.blockSizeLong
                 val totalBlocks = stat.blockCountLong
                 val totalSize = totalBlocks * blockSize

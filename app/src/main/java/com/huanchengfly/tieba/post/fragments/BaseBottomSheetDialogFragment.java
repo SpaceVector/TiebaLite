@@ -1,10 +1,8 @@
 package com.huanchengfly.tieba.post.fragments;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
-import android.content.res.Resources;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
@@ -14,7 +12,10 @@ import android.view.WindowManager;
 
 import androidx.annotation.CallSuper;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
@@ -36,7 +37,7 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
     public BaseBottomSheetDialogFragment() {
     }
 
-    @TargetApi(23)
+    @RequiresApi(23)
     @Override
     public void onAttach(Context context) {
         super.onAttach(context);
@@ -67,12 +68,16 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
     }
 
     protected int getStatusBarHeight() {
-        int statusBarHeight = 0;
-        Resources resources = getAttachContext().getResources();
-        int resourceId = resources.getIdentifier("status_bar_height", "dimen", "android");
-        if (resourceId > 0)
-            statusBarHeight = resources.getDimensionPixelSize(resourceId);
-        return statusBarHeight;
+        Activity activity = getActivity();
+        if (activity == null || activity.getWindow() == null) {
+            return 0;
+        }
+        View decorView = activity.getWindow().getDecorView();
+        WindowInsetsCompat windowInsets = ViewCompat.getRootWindowInsets(decorView);
+        if (windowInsets == null) {
+            return 0;
+        }
+        return windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top;
     }
 
     protected boolean isFullScreen() {
@@ -137,7 +142,9 @@ public abstract class BaseBottomSheetDialogFragment extends BottomSheetDialogFra
         if (dialog.getWindow() != null) {
             if (needFixHeight())
                 dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, getHeight());
-            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            dialog.getWindow().clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            dialog.getWindow().addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            dialog.getWindow().setStatusBarColor(Color.TRANSPARENT);
             ((View) rootView.getParent()).setBackgroundColor(Color.TRANSPARENT);
             dialog.getWindow().findViewById(R.id.design_bottom_sheet).setBackgroundColor(Color.TRANSPARENT);
         }

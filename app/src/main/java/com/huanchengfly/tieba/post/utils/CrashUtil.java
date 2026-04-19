@@ -14,6 +14,7 @@ import android.text.TextUtils;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.pm.PackageInfoCompat;
 
 import com.huanchengfly.tieba.post.App;
 import com.huanchengfly.tieba.post.MainActivityV2;
@@ -29,11 +30,15 @@ public class CrashUtil {
 
     @Nullable
     private static PackageInfo getLocalPackageInfo(Context context) {
-        PackageInfo packageInfo;
         try {
-            packageInfo = context.getApplicationContext()
-                    .getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            return packageInfo;
+            PackageManager packageManager = context.getApplicationContext().getPackageManager();
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                return packageManager.getPackageInfo(
+                        context.getPackageName(),
+                        PackageManager.PackageInfoFlags.of(0)
+                );
+            }
+            return packageManager.getPackageInfo(context.getPackageName(), 0);
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
             return null;
@@ -46,16 +51,25 @@ public class CrashUtil {
         if (pinfo != null) {
             if (ex != null) {
                 //app版本信息
-                exceptionStr.append("App Version：" + pinfo.versionName);
-                exceptionStr.append("_" + pinfo.versionCode + "\n");
+                exceptionStr.append("App Version：")
+                        .append(pinfo.versionName)
+                        .append("_")
+                        .append(PackageInfoCompat.getLongVersionCode(pinfo))
+                        .append("\n");
                 //手机系统信息
-                exceptionStr.append("OS Version：" + Build.VERSION.RELEASE);
-                exceptionStr.append("_");
-                exceptionStr.append(Build.VERSION.SDK_INT + "\n");
+                exceptionStr.append("OS Version：")
+                        .append(Build.VERSION.RELEASE)
+                        .append("_")
+                        .append(Build.VERSION.SDK_INT)
+                        .append("\n");
                 //手机制造商
-                exceptionStr.append("Vendor: " + Build.MANUFACTURER + "\n");
+                exceptionStr.append("Vendor: ")
+                        .append(Build.MANUFACTURER)
+                        .append("\n");
                 //手机型号
-                exceptionStr.append("Model: " + Build.MODEL + "\n");
+                exceptionStr.append("Model: ")
+                        .append(Build.MODEL)
+                        .append("\n");
                 String errorStr = ex.getLocalizedMessage();
                 if (TextUtils.isEmpty(errorStr)) {
                     errorStr = ex.getMessage();
@@ -63,11 +77,13 @@ public class CrashUtil {
                 if (TextUtils.isEmpty(errorStr)) {
                     errorStr = ex.toString();
                 }
-                exceptionStr.append("Exception: " + errorStr + "\n");
+                exceptionStr.append("Exception: ")
+                        .append(errorStr)
+                        .append("\n");
                 StackTraceElement[] elements = ex.getStackTrace();
                 if (elements != null) {
                     for (int i = 0; i < elements.length; i++) {
-                        exceptionStr.append(elements[i].toString() + "\n");
+                        exceptionStr.append(elements[i].toString()).append("\n");
                     }
                 }
             } else {

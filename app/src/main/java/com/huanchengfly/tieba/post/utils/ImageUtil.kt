@@ -12,6 +12,7 @@ import android.graphics.ColorMatrixColorFilter
 import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -302,10 +303,7 @@ object ImageUtil {
         askPermission(
             context,
             PermissionData(
-                listOf(
-                    PermissionUtils.READ_EXTERNAL_STORAGE,
-                    PermissionUtils.WRITE_EXTERNAL_STORAGE
-                ),
+                listOf(PermissionUtils.WRITE_EXTERNAL_STORAGE),
                 context.getString(R.string.tip_permission_storage)
             ),
             R.string.toast_no_permission_save_photo
@@ -393,11 +391,11 @@ object ImageUtil {
                         destFile.outputStream().use { outputStream ->
                             inputStream.copyTo(outputStream)
                         }
-                        context.sendBroadcast(
-                            Intent(
-                                Intent.ACTION_MEDIA_SCANNER_SCAN_FILE,
-                                Uri.fromFile(File(destFile.path))
-                            )
+                        MediaScannerConnection.scanFile(
+                            context,
+                            arrayOf(destFile.absolutePath),
+                            null,
+                            null
                         )
                         withContext(Dispatchers.Main) {
                             Toast.makeText(

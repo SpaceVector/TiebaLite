@@ -2,7 +2,6 @@ package com.huanchengfly.tieba.post.activities
 
 import android.annotation.SuppressLint
 import android.app.Activity
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.net.Uri
@@ -15,9 +14,14 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.SeekBar.OnSeekBarChangeListener
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.ColorInt
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 import androidx.core.text.HtmlCompat
 import androidx.palette.graphics.Palette
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,6 +33,7 @@ import com.github.panpf.sketch.request.LoadRequest
 import com.github.panpf.sketch.request.LoadResult
 import com.github.panpf.sketch.request.execute
 import com.github.panpf.sketch.resize.Scale
+import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.gyf.immersionbar.ImmersionBar
 import com.huanchengfly.tieba.post.*
@@ -59,6 +64,12 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
     private var alpha = 0
     private var blur = 0
     private var mPalette: Palette? = null
+
+    @BindView(R.id.background)
+    lateinit var backgroundView: CoordinatorLayout
+
+    @BindView(R.id.appbar)
+    lateinit var appBar: AppBarLayout
 
     @BindView(R.id.select_color)
     lateinit var mSelectColor: View
@@ -102,6 +113,18 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
             launchUCrop(sourceUri)
         }
     }
+
+    private val uCropLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == Activity.RESULT_OK) {
+                mUri = UCrop.getOutput(it.data!!)
+                invalidateFinishBtn()
+                refreshBackground()
+            } else if (it.resultCode == UCrop.RESULT_ERROR) {
+                val cropError = UCrop.getError(it.data!!)
+                cropError!!.printStackTrace()
+            }
+        }
 
     var wallpapers: List<String>? = null
         set(value) {
@@ -167,24 +190,12 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
                         )
                         setCompressionFormat(Bitmap.CompressFormat.JPEG)
                     })
-                    .start(this@TranslucentThemeActivity)
+                    .getIntent(this@TranslucentThemeActivity)
+                    .let(uCropLauncher::launch)
             } else if (result is LoadResult.Error) {
                 mProgress.visibility = View.GONE
                 toastShort(R.string.text_load_failed)
             }
-        }
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode == Activity.RESULT_OK && requestCode == UCrop.REQUEST_CROP) {
-            mUri = UCrop.getOutput(data!!)
-            invalidateFinishBtn()
-            refreshBackground()
-        } else if (resultCode == UCrop.RESULT_ERROR) {
-            val cropError = UCrop.getError(data!!)
-            cropError!!.printStackTrace()
         }
     }
 
@@ -235,6 +246,8 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
     @SuppressLint("ApplySharedPref", "ClickableViewAccessibility")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        applySystemBarInsets()
         experimentalTipView.setOnClickListener {
             showDialog {
                 setTitle(R.string.title_translucent_theme_experimental_feature)
@@ -257,8 +270,8 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
         ).forEach {
             it.setOnClickListener(this@TranslucentThemeActivity)
         }
-        wallpapers =
-            CacheUtil.getCache(this, "recommend_wallpapers", List::class.java) as List<String>?
+        wallpapers = CacheUtil.getCache(this, "recommend_wallpapers", List::class.java)
+            ?.filterIsInstance<String>()
         colorTheme.enableChangingLayoutTransition()
         wallpaperAdapter.setOnItemClickListener { _, item, _ ->
             launchUCrop(Uri.parse(item))
@@ -328,6 +341,18 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
         refreshBackground()
         refreshTheme()
         fetchWallpapers()
+    }
+
+    private fun applySystemBarInsets() {
+        val initialAppBarTop = appBar.paddingTop
+        val initialBottomSheetBottom = bottomSheet.paddingBottom
+        ViewCompat.setOnApplyWindowInsetsListener(backgroundView) { _, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            appBar.updatePadding(top = initialAppBarTop + systemBars.top)
+            bottomSheet.updatePadding(bottom = initialBottomSheetBottom + systemBars.bottom)
+            insets
+        }
+        ViewCompat.requestApplyInsets(backgroundView)
     }
 
     private fun fetchWallpapers() {
@@ -468,7 +493,7 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
                 })
             }
             R.id.button_back -> {
-                finish()
+                dispatchBackPress()
             }
             R.id.select_pic -> askPermission {
                 selectImageLauncher.launch(PickMediasRequest(mediaType = PickMediasRequest.ImageOnly))
@@ -506,18 +531,7 @@ class TranslucentThemeActivity : BaseActivity(), View.OnClickListener, OnSeekBar
         }
         requestPermission {
             unchecked = true
-            permissions = if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-                listOf(
-                    PermissionUtils.READ_EXTERNAL_STORAGE,
-                    PermissionUtils.WRITE_EXTERNAL_STORAGE
-                )
-            } else if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-                listOf(
-                    PermissionUtils.READ_EXTERNAL_STORAGE
-                )
-            } else {
-                listOf(PermissionUtils.READ_MEDIA_IMAGES)
-            }
+            permissions = PermissionUtils.readImagesPermissions()
             description = getString(R.string.tip_permission_storage)
             onGranted = granted
             onDenied = { toastShort(R.string.toast_no_permission_insert_photo) }

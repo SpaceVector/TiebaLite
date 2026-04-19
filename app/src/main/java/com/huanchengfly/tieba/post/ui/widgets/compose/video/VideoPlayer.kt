@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -116,13 +115,6 @@ fun VideoPlayer(
         videoPlayerController.enableGestures(gesturesEnabled)
     }
 
-    DisposableEffect(Unit) {
-        videoPlayerController.initialize()
-        onDispose {
-            videoPlayerController.release()
-        }
-    }
-
     CompositionLocalProvider(
         LocalContentColor provides Color.White,
         LocalVideoPlayerController provides videoPlayerController
@@ -151,10 +143,14 @@ fun VideoPlayer(
                 PlayerSurface(
                     modifier = Modifier
                         .aspectRatio(aspectRatio.takeUnless { it.isNaN() || it == 0f } ?: 2f)
-                        .align(Alignment.Center)
-                ) {
-                    videoPlayerController.playerViewAvailable(it)
-                }
+                        .align(Alignment.Center),
+                    onPlayerViewAvailable = {
+                        videoPlayerController.playerViewAvailable(it)
+                    },
+                    onPlayerViewRelease = {
+                        videoPlayerController.playerViewRelease(it)
+                    }
+                )
 
                 MediaController()
             } else {

@@ -27,7 +27,7 @@ public class PhotoInfoBean {
         this.fileUri = fileUri;
         this.uploadResult = uploadResult;
         try {
-            this.file = new File(FileUtil.getRealPathFromUri(context, fileUri));
+            this.file = FileUtil.copyUriToCacheFile(context, fileUri, "upload_", ".tmp");
         } catch (Exception e) {
             e.printStackTrace();
         }

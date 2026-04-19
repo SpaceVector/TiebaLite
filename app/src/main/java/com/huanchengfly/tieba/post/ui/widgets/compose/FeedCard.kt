@@ -2,6 +2,7 @@ package com.huanchengfly.tieba.post.ui.widgets.compose
 
 import android.content.pm.ActivityInfo
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,9 +39,11 @@ import androidx.compose.material.icons.rounded.PhotoLibrary
 import androidx.compose.material.icons.rounded.PhotoSizeSelectActual
 import androidx.compose.material.icons.rounded.SwapCalls
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.vectorResource
@@ -61,10 +65,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
-import com.google.accompanist.placeholder.PlaceholderHighlight
-import com.google.accompanist.placeholder.material.fade
-import com.google.accompanist.placeholder.material.placeholder
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.huanchengfly.tieba.post.App
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.models.protos.Media
@@ -326,9 +329,9 @@ fun FeedCardPlaceholder() {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .placeholder(
+                    .loadingPlaceholder(
                         visible = true,
-                        highlight = PlaceholderHighlight.fade(),
+                        useFadeHighlight = true,
                     )
             )
 
@@ -340,9 +343,9 @@ fun FeedCardPlaceholder() {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .placeholder(
+                    .loadingPlaceholder(
                         visible = true,
-                        highlight = PlaceholderHighlight.fade(),
+                        useFadeHighlight = true,
                     )
             )
         },
@@ -928,9 +931,9 @@ private fun ActionBtnPlaceholder(
             text = "Button",
             style = MaterialTheme.typography.caption,
             modifier = Modifier
-                .placeholder(
+                .loadingPlaceholder(
                     visible = true,
-                    highlight = PlaceholderHighlight.fade(),
+                    useFadeHighlight = true,
                 ),
         )
     }
@@ -971,28 +974,49 @@ fun VideoPlayer(
     modifier: Modifier = Modifier,
     title: String = "",
 ) {
+    val configuration = LocalConfiguration.current
     val context = LocalContext.current
-    val systemUiController = rememberSystemUiController()
+    val activity = remember(context) { context.findActivity() }
+    val windowInsetsController = remember(activity) {
+        activity?.let { WindowCompat.getInsetsController(it.window, it.window.decorView) }
+    }
+    val shouldLockLandscape = rememberUpdatedState(configuration.smallestScreenWidthDp < 600)
     val videoPlayerController = rememberVideoPlayerController(
         source = VideoPlayerSource.Network(videoUrl),
         thumbnailUrl = thumbnailUrl,
         fullScreenModeChangedListener = object : OnFullScreenModeChangedListener {
             override fun onFullScreenModeChanged(isFullScreen: Boolean) {
                 Log.i("VideoPlayer", "onFullScreenModeChanged $isFullScreen")
-                systemUiController.isStatusBarVisible = !isFullScreen
-                systemUiController.isNavigationBarVisible = !isFullScreen
-                if (isFullScreen) {
-                    context.findActivity()?.requestedOrientation =
+                windowInsetsController?.apply {
+                    systemBarsBehavior =
+                        WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    if (isFullScreen) {
+                        hide(WindowInsetsCompat.Type.systemBars())
+                    } else {
+                        show(WindowInsetsCompat.Type.systemBars())
+                    }
+                }
+                if (shouldLockLandscape.value && isFullScreen) {
+                    activity?.requestedOrientation =
                         ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                } else {
-                    context.findActivity()?.requestedOrientation =
+                } else if (shouldLockLandscape.value) {
+                    activity?.requestedOrientation =
                         ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 }
             }
         }
     )
+    DisposableEffect(videoPlayerController) {
+        (videoPlayerController as DefaultVideoPlayerController).initialize()
+        onDispose {
+            videoPlayerController.release()
+        }
+    }
 
     val fullScreen by (videoPlayerController as DefaultVideoPlayerController).collect { isFullScreen }
+    BackHandler(enabled = fullScreen) {
+        videoPlayerController.toggleFullScreen()
+    }
     val videoPlayerContent =
         movableContentOf { isFullScreen: Boolean, playerModifier: Modifier ->
             com.huanchengfly.tieba.post.ui.widgets.compose.video.VideoPlayer(
@@ -1006,7 +1030,9 @@ fun VideoPlayer(
         Spacer(
             modifier = modifier
         )
-        FullScreen {
+        FullScreen(
+            onBack = { videoPlayerController.toggleFullScreen() }
+        ) {
             videoPlayerContent(
                 true,
                 Modifier.fillMaxSize()

@@ -39,10 +39,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.github.panpf.sketch.compose.rememberAsyncImageState
 import com.github.panpf.sketch.request.LoadState
 import com.github.panpf.zoomimage.SketchZoomAsyncImage
-import com.google.accompanist.systemuicontroller.SystemUiController
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.arch.BaseComposeActivityWithParcelable
 import com.huanchengfly.tieba.post.models.PhotoViewData
@@ -107,6 +109,7 @@ class PhotoViewActivity : BaseComposeActivityWithParcelable<PhotoViewData>() {
     private val viewModel: PhotoViewViewModel by viewModels()
 
     override val dataExtraKey: String = EXTRA_PHOTO_VIEW_DATA
+    override val dataClass: Class<PhotoViewData> = PhotoViewData::class.java
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
@@ -252,8 +255,11 @@ class PhotoViewActivity : BaseComposeActivityWithParcelable<PhotoViewData>() {
         }
     }
 
-    override fun onCreateContent(systemUiController: SystemUiController) {
-        systemUiController.isSystemBarsVisible = false
+    override fun onCreateContent() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {

@@ -18,6 +18,9 @@ import com.zhihu.matisse.MimeType
 import com.zhihu.matisse.engine.impl.GlideEngine
 import com.zhihu.matisse.ui.MatisseActivity
 
+private const val ActionPickImages = "android.provider.action.PICK_IMAGES"
+private const val ExtraPickImagesMax = "android.provider.extra.PICK_IMAGES_MAX"
+
 fun AppCompatActivity.registerPickMediasLauncher(callback: (PickMediasResult) -> Unit): ActivityResultLauncher<PickMediasRequest> {
     return registerForActivityResult(
         PickMediasContract
@@ -109,10 +112,10 @@ object PickMediasContract : ActivityResultContract<PickMediasRequest, PickMedias
     override fun createIntent(context: Context, input: PickMediasRequest): Intent {
         curRequestId = input.id
         if (shouldUsePhotoPicker()) {
-            return Intent(MediaStore.ACTION_PICK_IMAGES).apply {
+            return Intent(ActionPickImages).apply {
                 type = PickMediasRequest.getMimeType(input.mediaType)
                 if (input.maxItems > 1) {
-                    putExtra(MediaStore.EXTRA_PICK_IMAGES_MAX, input.maxItems)
+                    putExtra(ExtraPickImagesMax, input.maxItems)
                 }
             }
         }

@@ -38,7 +38,9 @@ captures/
 
 # IntelliJ
 *.iml
-.idea/
+.idea/*
+!.idea/.gitignore
+!.idea/gradle.xml
 
 # Keystore files
 # Uncomment the following line if you do not want to check your keystore files in.
