@@ -62,6 +62,7 @@ fun LoadMoreLayout(
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
     enableLoadMore: Boolean = true,
+    enableSwipeLoadMore: Boolean = true,
     loadEnd: Boolean = false,
     indicator: @Composable (Boolean, Boolean, Boolean) -> Unit = { loading, end, willLoad ->
         DefaultIndicator(
@@ -90,7 +91,7 @@ fun LoadMoreLayout(
     DisposableEffect(Unit) {
         val job = coroutineScope.launch {
             loadMoreFlow
-                .sample(500)
+                .sample(150)
                 .collect {
                     curOnLoadMore()
                     waitingStateReset = true
@@ -102,6 +103,9 @@ fun LoadMoreLayout(
     }
 
     val canLoadMore = remember(enableLoadMore, loadEnd) { enableLoadMore && !loadEnd }
+    val canSwipeLoadMore = remember(enableSwipeLoadMore, canLoadMore) {
+        enableSwipeLoadMore && canLoadMore
+    }
     val curIsEmpty by rememberUpdatedState(newValue = isEmpty)
     val curIsLoading by rememberUpdatedState(newValue = isLoading)
     val curCanLoadMore by rememberUpdatedState(newValue = canLoadMore)
@@ -152,16 +156,28 @@ fun LoadMoreLayout(
 
     Box(
         modifier = Modifier
-            .nestedScroll(swipeableState.LoadPreDownPostUpNestedScrollConnection)
-            .swipeable(
-                state = swipeableState,
-                anchors = mapOf(
-                    loadDistance to false,
-                    -loadDistance to true,
-                ),
-                thresholds = { _, _ -> FractionalThreshold(0.5f) },
-                orientation = Orientation.Vertical,
-                enabled = enableLoadMore && !waitingStateReset,
+            .then(
+                if (canSwipeLoadMore) {
+                    Modifier.nestedScroll(swipeableState.LoadPreDownPostUpNestedScrollConnection)
+                } else {
+                    Modifier
+                }
+            )
+            .then(
+                if (canSwipeLoadMore) {
+                    Modifier.swipeable(
+                        state = swipeableState,
+                        anchors = mapOf(
+                            loadDistance to false,
+                            -loadDistance to true,
+                        ),
+                        thresholds = { _, _ -> FractionalThreshold(0.5f) },
+                        orientation = Orientation.Vertical,
+                        enabled = !waitingStateReset,
+                    )
+                } else {
+                    Modifier
+                }
             )
             .fillMaxSize()
             .then(modifier)
@@ -172,7 +188,7 @@ fun LoadMoreLayout(
             .align(Alignment.BottomCenter)
             .offset { IntOffset(0, swipeableState.offset.value.roundToInt()) }
         ) {
-            if (enableLoadMore && swipeableState.offset.value != loadDistance) {
+            if (canSwipeLoadMore && swipeableState.offset.value != loadDistance) {
                 indicator(isLoading, loadEnd, swipeableState.targetValue)
             }
         }

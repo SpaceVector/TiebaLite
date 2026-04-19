@@ -159,14 +159,6 @@ fun PersonalizedPage(
             showRefreshTip = false
         }
     }
-//    if (lazyListState.isScrollInProgress) {
-//        DisposableEffect(Unit) {
-//            PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = true
-//            onDispose {
-//                PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = false
-//            }
-//        }
-//    }
     StateScreen(
         modifier = Modifier.fillMaxSize(),
         isEmpty = isEmpty,
@@ -185,9 +177,11 @@ fun PersonalizedPage(
             LoadMoreLayout(
                 isLoading = isLoadingMore,
                 onLoadMore = { viewModel.send(PersonalizedUiIntent.LoadMore(currentPage + 1)) },
+                enableSwipeLoadMore = false,
                 loadEnd = false,
                 lazyListState = lazyListState,
-                isEmpty = data.isEmpty()
+                isEmpty = data.isEmpty(),
+                preloadCount = 8,
             ) {
                 FeedList(
                     state = lazyListState,

@@ -14,11 +14,23 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.github.panpf.sketch.request.PauseLoadWhenScrollingDrawableDecodeInterceptor
 import com.huanchengfly.tieba.post.arch.GlobalEvent
 import com.huanchengfly.tieba.post.arch.onGlobalEvent
+
+@Composable
+private fun PauseImageDecodeWhenScrolling(isScrollInProgress: Boolean) {
+    DisposableEffect(isScrollInProgress) {
+        PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = isScrollInProgress
+        onDispose {
+            PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = false
+        }
+    }
+}
 
 @Composable
 fun MyLazyColumn(
@@ -36,6 +48,7 @@ fun MyLazyColumn(
     onGlobalEvent<GlobalEvent.ScrollToTop> {
         state.animateScrollToItem(0)
     }
+    PauseImageDecodeWhenScrolling(state.isScrollInProgress)
 
     LazyColumn(
         modifier = modifier,
@@ -67,6 +80,7 @@ fun MyLazyVerticalGrid(
     onGlobalEvent<GlobalEvent.ScrollToTop> {
         state.animateScrollToItem(0)
     }
+    PauseImageDecodeWhenScrolling(state.isScrollInProgress)
 
     LazyVerticalGrid(
         columns = columns,

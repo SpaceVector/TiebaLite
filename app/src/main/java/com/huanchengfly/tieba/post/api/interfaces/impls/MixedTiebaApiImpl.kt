@@ -156,7 +156,7 @@ object MixedTiebaApiImpl : ITiebaApi {
                         load_type = loadType,
                         pn = page,
                         need_tags = 0,
-                        page_thread_count = 11,
+                        page_thread_count = 24,
                         pre_ad_thread_count = 0,
                         sug_count = 0,
                         tag_code = 0,

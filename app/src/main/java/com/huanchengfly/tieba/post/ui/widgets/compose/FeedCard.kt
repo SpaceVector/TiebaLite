@@ -124,6 +124,18 @@ private fun UserHeader(
     val context = LocalContext.current
     val user = remember(userProvider) { userProvider() }
     val time = remember(timeProvider) { timeProvider() }
+    val contentColor = LocalContentColor.current
+    val usernameText = remember(context, user, contentColor) {
+        StringUtil.getUsernameAnnotatedString(
+            context = context,
+            username = user.get { name },
+            nickname = user.get { nameShow },
+            color = contentColor
+        )
+    }
+    val relativeTimeText = remember(context, time) {
+        DateTimeUtils.getRelativeTimeString(context, time.toString())
+    }
     UserHeader(
         avatar = {
             Avatar(
@@ -134,23 +146,13 @@ private fun UserHeader(
         },
         name = {
             Text(
-                text = StringUtil.getUsernameAnnotatedString(
-                    context = LocalContext.current,
-                    username = user.get { name },
-                    nickname = user.get { nameShow },
-                    color = LocalContentColor.current
-                ),
+                text = usernameText,
                 color = ExtendedTheme.colors.text
             )
         },
         onClick = onClick,
         desc = {
-            Text(
-                text = DateTimeUtils.getRelativeTimeString(
-                    context,
-                    time.toString()
-                )
-            )
+            Text(text = relativeTimeText)
         },
         content = content,
         modifier = modifier
@@ -172,6 +174,18 @@ fun UserHeader(
     val nameShow = remember(nameShowProvider) { nameShowProvider() }
     val portrait = remember(portraitProvider) { portraitProvider() }
     val time = remember(timeProvider) { timeProvider?.invoke() }
+    val contentColor = LocalContentColor.current
+    val usernameText = remember(context, name, nameShow, contentColor) {
+        StringUtil.getUsernameAnnotatedString(
+            context = context,
+            username = name,
+            nickname = nameShow,
+            color = contentColor
+        )
+    }
+    val relativeTimeText = remember(context, time) {
+        time?.let { DateTimeUtils.getRelativeTimeString(context, it.toString()) }
+    }
     UserHeader(
         avatar = {
             Avatar(
@@ -182,24 +196,14 @@ fun UserHeader(
         },
         name = {
             Text(
-                text = StringUtil.getUsernameAnnotatedString(
-                    context = LocalContext.current,
-                    username = name,
-                    nickname = nameShow,
-                    color = LocalContentColor.current
-                ),
+                text = usernameText,
                 color = ExtendedTheme.colors.text
             )
         },
         onClick = onClick,
         desc = (@Composable {
-            Text(
-                text = DateTimeUtils.getRelativeTimeString(
-                    context,
-                    time.toString()
-                )
-            )
-        }).takeIf { time != null },
+            Text(text = relativeTimeText.orEmpty())
+        }).takeIf { relativeTimeText != null },
         content = content,
         modifier = modifier
     )
@@ -276,44 +280,70 @@ fun ThreadContent(
     maxLines: Int = 5,
     highlightKeywords: ImmutableList<String> = persistentListOf(),
 ) {
-    val content = buildAnnotatedString {
-        if (showTitle) {
-            withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
-                if (isGood) {
-                    withStyle(style = SpanStyle(color = ExtendedTheme.colors.accent)) {
-                        append(stringResource(id = R.string.tip_good))
+    val goodText = stringResource(id = R.string.tip_good)
+    val accentColor = ExtendedTheme.colors.accent
+    val content = remember(
+        title,
+        abstractText,
+        tabName,
+        showTitle,
+        showAbstract,
+        isGood,
+        goodText,
+        accentColor
+    ) {
+        buildAnnotatedString {
+            if (showTitle) {
+                withStyle(style = SpanStyle(fontWeight = FontWeight.Bold)) {
+                    if (isGood) {
+                        withStyle(style = SpanStyle(color = accentColor)) {
+                            append(goodText)
+                        }
+                        append(" ")
                     }
-                    append(" ")
-                }
 
-                if (tabName.isNotBlank()) {
-                    append(tabName)
-                    append(" | ")
-                }
+                    if (tabName.isNotBlank()) {
+                        append(tabName)
+                        append(" | ")
+                    }
 
-                append(title)
+                    append(title)
+                }
             }
-        }
-        if (showTitle && showAbstract) {
-            append('\n')
-        }
-        if (showAbstract) {
-            append(abstractText.emoticonString)
+            if (showTitle && showAbstract) {
+                append('\n')
+            }
+            if (showAbstract) {
+                append(abstractText.emoticonString)
+            }
         }
     }
 
-    HighlightText(
-        text = content,
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(modifier),
-        fontSize = 15.sp,
-        lineSpacing = 0.8.sp,
-        overflow = TextOverflow.Ellipsis,
-        maxLines = maxLines,
-        style = MaterialTheme.typography.body1,
-        highlightKeywords = highlightKeywords
-    )
+    val textModifier = Modifier
+        .fillMaxWidth()
+        .then(modifier)
+    if (highlightKeywords.isEmpty()) {
+        EmoticonText(
+            text = content,
+            modifier = textModifier,
+            fontSize = 15.sp,
+            lineSpacing = 0.8.sp,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = maxLines,
+            style = MaterialTheme.typography.body1,
+        )
+    } else {
+        HighlightText(
+            text = content,
+            modifier = textModifier,
+            fontSize = 15.sp,
+            lineSpacing = 0.8.sp,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = maxLines,
+            style = MaterialTheme.typography.body1,
+            highlightKeywords = highlightKeywords
+        )
+    }
 }
 
 @Composable
@@ -510,17 +540,6 @@ private fun ThreadMedia(
                     if (isSinglePhoto) 2f else 3f
                 }
                 if (hideMedia) {
-                    val photoViewData = remember(
-                        medias, forumId, forumName, threadId
-                    ) {
-                        getPhotoViewData(
-                            medias = medias.map { it.get() },
-                            forumId = forumId,
-                            forumName = forumName,
-                            threadId = threadId,
-                            index = 0
-                        )
-                    }
                     MediaPlaceholder(
                         icon = {
                             Icon(
@@ -533,6 +552,13 @@ private fun ThreadMedia(
                         },
                         modifier = Modifier.fillMaxWidth(),
                         onClick = {
+                            val photoViewData = getPhotoViewData(
+                                medias = medias.map { it.get() },
+                                forumId = forumId,
+                                forumName = forumName,
+                                threadId = threadId,
+                                index = 0
+                            )
                             context.goToActivity<PhotoViewActivity> {
                                 putExtra(
                                     PhotoViewActivity.EXTRA_PHOTO_VIEW_DATA,
@@ -554,24 +580,22 @@ private fun ThreadMedia(
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             showMedias.fastForEachIndexed { index, media ->
-                                val photoViewData = remember(
-                                    index, medias, forumId, forumName, threadId
-                                ) {
-                                    getPhotoViewData(
-                                        medias = medias.map { it.get() },
-                                        forumId = forumId,
-                                        forumName = forumName,
-                                        threadId = threadId,
-                                        index = index
-                                    )
-                                }
                                 NetworkImage(
                                     imageUri = remember(media) { media.url },
                                     contentDescription = null,
                                     modifier = Modifier
                                         .fillMaxHeight()
                                         .weight(1f),
-                                    photoViewData = photoViewData,
+                                    photoViewDataProvider = {
+                                        getPhotoViewData(
+                                            medias = medias.map { it.get() },
+                                            forumId = forumId,
+                                            forumName = forumName,
+                                            threadId = threadId,
+                                            index = index
+                                        )
+                                    },
+                                    previewOriginUrl = media.get { originPic },
                                     contentScale = ContentScale.Crop,
                                     enablePreview = true
                                 )
