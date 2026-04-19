@@ -91,9 +91,19 @@ jobs:
       - name: Upload Mapping to App Center
         if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
         env:
+          APPCENTER_ACCESS_TOKEN: ${{ secrets.APP_CENTER_TOKEN }}
+          APP_CENTER_APP: ${{ secrets.APP_CENTER_APP }}
           version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
           version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
-        uses: saurav-aggarwal/appcenter-cli-action@1.0.1
-        with:
-          token: ${{ secrets.APP_CENTER_TOKEN }}
-          command: appcenter crashes upload-mappings -c ${{ env.version_code }} -n ${{ env.version_name }} -m ./app/build/outputs/mapping/release/mapping.txt -a ${{ secrets.APP_CENTER_APP }}
+        run: |
+          if [ -z "$APPCENTER_ACCESS_TOKEN" ] || [ -z "$APP_CENTER_APP" ]; then
+            echo "App Center secrets are not configured, skipping mapping upload."
+            exit 0
+          fi
+
+          npm install --location=global appcenter-cli
+          appcenter crashes upload-mappings \
+            -c "$version_code" \
+            -n "$version_name" \
+            -m ./app/build/outputs/mapping/release/mapping.txt \
+            -a "$APP_CENTER_APP"
