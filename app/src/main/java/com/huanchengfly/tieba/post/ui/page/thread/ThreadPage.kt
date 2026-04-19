@@ -1576,6 +1576,27 @@ fun ThreadPage(
                                 }
                                 if (curSortType != ThreadSortType.SORT_TYPE_DESC) {
                                     latestPosts(false)
+                                    if (!hasMore) {
+                                        item(key = "LatestReplyFooter") {
+                                            Container {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    VerticalDivider(modifier = Modifier.weight(1f))
+                                                    Text(
+                                                        text = stringResource(id = R.string.already_latest_reply),
+                                                        color = ExtendedTheme.colors.textSecondary,
+                                                        style = MaterialTheme.typography.caption,
+                                                    )
+                                                    VerticalDivider(modifier = Modifier.weight(1f))
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

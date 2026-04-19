@@ -356,6 +356,7 @@
     <string name="tip_start">提示：</string>
     <string name="title_dialog_modify_little_tail">修改小尾巴</string>
     <string name="no_more">没有更多了</string>
+    <string name="already_latest_reply">已经到底了</string>
     <string name="desc_comment">评论</string>
     <string name="desc_share">分享</string>
     <string name="desc_like">赞</string>
