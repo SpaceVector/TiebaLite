@@ -18,13 +18,24 @@ jobs:
           cache: gradle
 
       - name: Generate keystore.properties
-        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && vars.RELEASE_KEYSTORE != '' && vars.RELEASE_KEY_ALIAS != '' && secrets.KEYSTORE != '' && secrets.RELEASESTOREPASSWORD != '' && secrets.RELEASEKEYPASSWORD != '' }}
+        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        env:
+          RELEASE_KEYSTORE: ${{ vars.RELEASE_KEYSTORE }}
+          RELEASE_KEY_ALIAS: ${{ vars.RELEASE_KEY_ALIAS }}
+          KEYSTORE_B64: ${{ secrets.KEYSTORE }}
+          RELEASE_STORE_PASSWORD: ${{ secrets.RELEASESTOREPASSWORD }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASEKEYPASSWORD }}
         run: |
-          echo "${{ secrets.KEYSTORE }}" | base64 --decode > "${{ vars.RELEASE_KEYSTORE }}"
-          echo keystore.file="${{ vars.RELEASE_KEYSTORE }}" >> keystore.properties
-          echo keystore.password="${{ secrets.RELEASESTOREPASSWORD }}" >> keystore.properties
-          echo keystore.key.alias="${{ vars.RELEASE_KEY_ALIAS }}" >> keystore.properties
-          echo keystore.key.password="${{ secrets.RELEASEKEYPASSWORD }}" >> keystore.properties
+          if [ -z "$RELEASE_KEYSTORE" ] || [ -z "$RELEASE_KEY_ALIAS" ] || [ -z "$KEYSTORE_B64" ] || [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
+            echo "Release signing secrets are not configured, skipping keystore generation."
+            exit 0
+          fi
+
+          echo "$KEYSTORE_B64" | base64 --decode > "$RELEASE_KEYSTORE"
+          echo keystore.file="$RELEASE_KEYSTORE" >> keystore.properties
+          echo keystore.password="$RELEASE_STORE_PASSWORD" >> keystore.properties
+          echo keystore.key.alias="$RELEASE_KEY_ALIAS" >> keystore.properties
+          echo keystore.key.password="$RELEASE_KEY_PASSWORD" >> keystore.properties
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
@@ -85,13 +96,18 @@ jobs:
           fi
 
       - name: Upload Mapping to App Center
-        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.APP_CENTER_TOKEN != '' && secrets.APP_CENTER_APP != '' }}
+        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APP_CENTER_TOKEN }}
           APP_CENTER_APP: ${{ secrets.APP_CENTER_APP }}
           version_code: ${{ steps.read_output_metadata.outputs.version_code }}
           version_name: ${{ steps.read_output_metadata.outputs.version_name }}
         run: |
+          if [ -z "$APPCENTER_ACCESS_TOKEN" ] || [ -z "$APP_CENTER_APP" ]; then
+            echo "App Center secrets are not configured, skipping mapping upload."
+            exit 0
+          fi
+
           npm install --location=global appcenter-cli
           appcenter crashes upload-mappings \
             -c "$version_code" \
