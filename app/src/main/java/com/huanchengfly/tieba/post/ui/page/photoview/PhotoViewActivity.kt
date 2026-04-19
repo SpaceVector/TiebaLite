@@ -45,6 +45,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import com.github.panpf.sketch.compose.rememberAsyncImageState
 import com.github.panpf.sketch.request.LoadState
 import com.github.panpf.zoomimage.SketchZoomAsyncImage
+import com.github.panpf.zoomimage.compose.rememberZoomState
+import com.github.panpf.zoomimage.zoom.ReadMode
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.arch.BaseComposeActivityWithParcelable
 import com.huanchengfly.tieba.post.models.PhotoViewData
@@ -67,6 +69,10 @@ private fun ViewPhoto(
         contentAlignment = Alignment.Center
     ) {
         val state = rememberAsyncImageState()
+        val zoomState = rememberZoomState()
+        LaunchedEffect(zoomState) {
+            zoomState.zoomable.readMode = ReadMode(sizeType = ReadMode.SIZE_TYPE_VERTICAL)
+        }
         val progress by remember {
             derivedStateOf {
                 (state.progress?.completedLength?.toFloat() ?: 0f) / (state.progress?.totalLength
@@ -84,6 +90,7 @@ private fun ViewPhoto(
             modifier = Modifier.fillMaxSize(),
             onTap = onTap,
             imageState = state,
+            state = zoomState,
         )
         if (showProgress) {
             Box(
