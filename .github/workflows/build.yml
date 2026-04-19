@@ -17,24 +17,14 @@ jobs:
           distribution: "zulu"
           cache: gradle
 
-      - name: Decode Keystore
-        id: decode_keystore
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
-        uses: timheuer/base64-to-file@v1.2
-        with:
-          fileName: ${{ vars.RELEASE_KEYSTORE }}
-          fileDir: ${{ github.workspace }}
-          encodedString: ${{ secrets.KEYSTORE }}
-
       - name: Generate keystore.properties
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && vars.RELEASE_KEYSTORE != '' && vars.RELEASE_KEY_ALIAS != '' && secrets.KEYSTORE != '' && secrets.RELEASESTOREPASSWORD != '' && secrets.RELEASEKEYPASSWORD != '' }}
         run: |
-          if [ -n "${{ secrets.RELEASEKEYPASSWORD }}" ]; then
-            echo keystore.file="${{ vars.RELEASE_KEYSTORE }}" >> keystore.properties
-            echo keystore.password="${{ secrets.RELEASESTOREPASSWORD }}" >> keystore.properties
-            echo keystore.key.alias="${{ vars.RELEASE_KEY_ALIAS }}" >> keystore.properties
-            echo keystore.key.password="${{ secrets.RELEASEKEYPASSWORD }}" >> keystore.properties
-          fi
+          echo "${{ secrets.KEYSTORE }}" | base64 --decode > "${{ vars.RELEASE_KEYSTORE }}"
+          echo keystore.file="${{ vars.RELEASE_KEYSTORE }}" >> keystore.properties
+          echo keystore.password="${{ secrets.RELEASESTOREPASSWORD }}" >> keystore.properties
+          echo keystore.key.alias="${{ vars.RELEASE_KEY_ALIAS }}" >> keystore.properties
+          echo keystore.key.password="${{ secrets.RELEASEKEYPASSWORD }}" >> keystore.properties
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
@@ -47,18 +37,24 @@ jobs:
 
       - name: Read Output Metadata
         id: read_output_metadata
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: ./app/build/outputs/apk/release/output-metadata.json
-          trim: true
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          metadata_path = Path("./app/build/outputs/apk/release/output-metadata.json")
+          metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+          element = metadata["elements"][0]
+
+          with open(Path(__import__("os").environ["GITHUB_OUTPUT"]), "a", encoding="utf-8") as fh:
+              fh.write(f'version_code={element["versionCode"]}\n')
+              fh.write(f'version_name={element["versionName"]}\n')
+          PY
 
       - name: Upload Release Package
-        env:
-          version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
-          version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
         uses: actions/upload-artifact@v4
         with:
-          name: "release-${{ env.version_name }}(${{ env.version_code }})"
+          name: "release-${{ steps.read_output_metadata.outputs.version_name }}(${{ steps.read_output_metadata.outputs.version_code }})"
           path: ./app/build/outputs/apk/release
 
       - name: Upload Mapping
@@ -68,7 +64,7 @@ jobs:
           path: ./app/build/outputs/mapping/release
 
       - name: Post to channel
-        if: contains(github.event.head_commit.message, '[skip post]') == false && github.event_name != 'pull_request'
+        if: ${{ github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[skip post]') }}
         env:
           CHANNEL_ID: ${{ secrets.CHANNEL_DEV_ID }}
           BOT_TOKEN: ${{ secrets.BOT_DEV_TOKEN }}
@@ -89,18 +85,13 @@ jobs:
           fi
 
       - name: Upload Mapping to App Center
-        if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
+        if: ${{ (github.event_name != 'pull_request' || github.ref_type == 'tag') && secrets.APP_CENTER_TOKEN != '' && secrets.APP_CENTER_APP != '' }}
         env:
           APPCENTER_ACCESS_TOKEN: ${{ secrets.APP_CENTER_TOKEN }}
           APP_CENTER_APP: ${{ secrets.APP_CENTER_APP }}
-          version_code: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionCode }}
-          version_name: ${{ fromJSON(steps.read_output_metadata.outputs.content).elements[0].versionName }}
+          version_code: ${{ steps.read_output_metadata.outputs.version_code }}
+          version_name: ${{ steps.read_output_metadata.outputs.version_name }}
         run: |
-          if [ -z "$APPCENTER_ACCESS_TOKEN" ] || [ -z "$APP_CENTER_APP" ]; then
-            echo "App Center secrets are not configured, skipping mapping upload."
-            exit 0
-          fi
-
           npm install --location=global appcenter-cli
           appcenter crashes upload-mappings \
             -c "$version_code" \
