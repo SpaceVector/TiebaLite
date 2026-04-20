@@ -43,8 +43,9 @@ import com.huanchengfly.tieba.post.utils.ImageCacheUtil
 import com.huanchengfly.tieba.post.utils.appPreferences
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlin.concurrent.thread
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterialApi::class)
 @Destination
@@ -73,8 +74,8 @@ fun MoreSettingsPage(
         val context = LocalContext.current
         var cacheSize by remember { mutableStateOf("0.0B") }
         LaunchedEffect(Unit) {
-            thread {
-                cacheSize = ImageCacheUtil.getCacheSize(context)
+            cacheSize = withContext(Dispatchers.IO) {
+                ImageCacheUtil.getCacheSize(context)
             }
         }
         PrefsScreen(

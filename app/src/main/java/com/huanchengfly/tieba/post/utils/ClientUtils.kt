@@ -9,11 +9,11 @@ import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.dataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.lang.ref.WeakReference
 
 object ClientUtils {
@@ -28,6 +28,7 @@ object ClientUtils {
     private val activeTimestampKey by lazy { longPreferencesKey(ACTIVE_TIMESTAMP) }
 
     private lateinit var contextWeakReference: WeakReference<Context>
+    private val clientScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val context: Context
         get() = contextWeakReference.get() ?: App.INSTANCE
 
@@ -38,20 +39,12 @@ object ClientUtils {
 
     fun init(context: Context) {
         contextWeakReference = WeakReference(context)
-        CoroutineScope(Dispatchers.IO).launch {
-            clientId = withContext(Dispatchers.IO) {
-                context.dataStore.data.map { it[clientIdKey] }.firstOrNull()
-            }
-            sampleId = withContext(Dispatchers.IO) {
-                context.dataStore.data.map { it[sampleIdKey] }.firstOrNull()
-            }
-            baiduId = withContext(Dispatchers.IO) {
-                context.dataStore.data.map { it[baiduIdKey] }.firstOrNull()
-            }
-            activeTimestamp = withContext(Dispatchers.IO) {
-                context.dataStore.data.map { it[activeTimestampKey] }.firstOrNull()
-                    ?: System.currentTimeMillis()
-            }
+        clientScope.launch {
+            clientId = context.dataStore.data.map { it[clientIdKey] }.firstOrNull()
+            sampleId = context.dataStore.data.map { it[sampleIdKey] }.firstOrNull()
+            baiduId = context.dataStore.data.map { it[baiduIdKey] }.firstOrNull()
+            activeTimestamp = context.dataStore.data.map { it[activeTimestampKey] }.firstOrNull()
+                ?: System.currentTimeMillis()
             sync(context)
         }
     }
@@ -80,7 +73,7 @@ object ClientUtils {
     private suspend fun sync(context: Context) {
         TiebaApi.getInstance()
             .syncFlow(clientId)
-            .catch { it.printStackTrace() }
+            .catch { }
             .collect {
                 clientId = it.client.clientId
                 sampleId = it.wlConfig.sampleId

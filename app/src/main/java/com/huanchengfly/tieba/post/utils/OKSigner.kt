@@ -1,7 +1,6 @@
 package com.huanchengfly.tieba.post.utils
 
 import android.content.Context
-import android.util.Log
 import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.MSignBean
 import com.huanchengfly.tieba.post.api.models.SignResultBean
@@ -90,10 +89,6 @@ class SingleAccountSigner(
     context: Context,
     private val account: Account
 ) : IOKSigner(context) {
-    companion object {
-        const val TAG = "SingleAccountSigner"
-    }
-
     private val signData: MutableList<SignDataBean> = mutableListOf()
     private var position = 0
     private var successCount = 0
@@ -115,7 +110,6 @@ class SingleAccountSigner(
         signData.clear()
         var userName: String by Delegates.notNull()
         var tbs: String by Delegates.notNull()
-        Log.i(TAG, "start")
         AccountUtil.fetchAccountFlow(account)
             .flatMapConcat { account ->
                 userName = account.name

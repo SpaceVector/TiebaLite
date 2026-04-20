@@ -84,8 +84,10 @@ abstract class BaseAdapter<Item>(
     }
 
     fun clearHeaderViews() {
+        val headerCount = headers.size
+        if (headerCount == 0) return
         headers.clear()
-        notifyDataSetChanged()
+        notifyItemRangeRemoved(0, headerCount)
     }
 
     fun addFooterView(view: View) {
@@ -102,8 +104,11 @@ abstract class BaseAdapter<Item>(
     }
 
     fun clearFooterViews() {
+        val footerCount = footers.size
+        if (footerCount == 0) return
+        val footerStart = headers.size + getDataSize()
         footers.clear()
-        notifyDataSetChanged()
+        notifyItemRangeRemoved(footerStart, footerCount)
     }
 
     override fun getItemCount(): Int = headers.size + getDataSize() + footers.size
@@ -173,9 +178,28 @@ abstract class BaseAdapter<Item>(
     fun getDataSize() = itemList.size
 
     fun setData(items: List<Item>?) {
+        val oldDataSize = getDataSize()
+        val newItems = items ?: emptyList()
+        val newDataSize = newItems.size
         itemList.clear()
-        itemList.addAll(items ?: emptyList())
-        notifyDataSetChanged()
+        itemList.addAll(newItems)
+        when {
+            oldDataSize == 0 && newDataSize == 0 -> Unit
+            oldDataSize == 0 -> notifyItemRangeInserted(headers.size, newDataSize)
+            newDataSize == 0 -> notifyItemRangeRemoved(headers.size, oldDataSize)
+            else -> {
+                val sharedCount = minOf(oldDataSize, newDataSize)
+                notifyItemRangeChanged(headers.size, sharedCount)
+                when {
+                    newDataSize > oldDataSize -> {
+                        notifyItemRangeInserted(headers.size + oldDataSize, newDataSize - oldDataSize)
+                    }
+                    oldDataSize > newDataSize -> {
+                        notifyItemRangeRemoved(headers.size + newDataSize, oldDataSize - newDataSize)
+                    }
+                }
+            }
+        }
     }
 
     open fun remove(position: Int) {
@@ -211,8 +235,10 @@ abstract class BaseAdapter<Item>(
     }
 
     open fun reset() {
+        val dataSize = getDataSize()
+        if (dataSize == 0) return
         itemList.clear()
-        notifyDataSetChanged()
+        notifyItemRangeRemoved(headers.size, dataSize)
     }
 
     class Layout(

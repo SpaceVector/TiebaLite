@@ -2,13 +2,14 @@ package com.huanchengfly.tieba.post.arch
 
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import com.huanchengfly.tieba.post.utils.PickMediasRequest
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -58,8 +59,17 @@ sealed interface GlobalEvent : UiEvent {
 private val globalEventSharedFlow: MutableSharedFlow<UiEvent> by lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
     MutableSharedFlow(0, 2, BufferOverflow.DROP_OLDEST)
 }
+private val globalEventScope: CoroutineScope by lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+    CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+}
 
 val GlobalEventFlow = globalEventSharedFlow.asSharedFlow()
+
+fun emitGlobalEvent(event: UiEvent) {
+    globalEventScope.launch {
+        globalEventSharedFlow.emit(event)
+    }
+}
 
 fun CoroutineScope.emitGlobalEvent(event: UiEvent) {
     launch {
@@ -83,7 +93,6 @@ inline fun <reified Event : UiEvent> CoroutineScope.onGlobalEvent(
             }
             .cancellable()
             .collect {
-                Log.i("GlobalEvent", "onGlobalEvent: $it")
                 listener(it)
             }
     }

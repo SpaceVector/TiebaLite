@@ -9,7 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.text.TextUtils
 import android.util.AttributeSet
-import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.view.View.OnLongClickListener
@@ -41,8 +40,6 @@ import com.huanchengfly.tieba.post.utils.DisplayUtil
 import com.huanchengfly.tieba.post.utils.FileUtil
 import com.huanchengfly.tieba.post.utils.PopupUtil
 import java.io.IOException
-import java.util.Timer
-import java.util.TimerTask
 
 class VoicePlayerView @JvmOverloads constructor(
     context: Context?,
@@ -55,8 +52,17 @@ class VoicePlayerView @JvmOverloads constructor(
     private lateinit var animationView: LottieAnimationView
     private lateinit var progressBar: ProgressBar
 
-    private var timer: Timer? = null
     private var player: Player? = null
+    private val progressUpdateRunnable = object : Runnable {
+        override fun run() {
+            val currentPlayer = player
+            if (completed || currentPlayer == null || !currentPlayer.isPlaying) {
+                return
+            }
+            setText(calculateTime(currentPlayer.currentPosition / 1000))
+            handler.postDelayed(this, PROGRESS_UPDATE_INTERVAL_MS)
+        }
+    }
 
     var url: String? = null
 
@@ -147,12 +153,17 @@ class VoicePlayerView @JvmOverloads constructor(
         if (isInEditMode) {
             return
         }
-        if (timer != null) {
-            timer!!.cancel()
-            timer = null
-        }
-        timer = Timer()
+        stopProgressUpdates()
         player = Player(this)
+    }
+
+    private fun startProgressUpdates() {
+        stopProgressUpdates()
+        handler.post(progressUpdateRunnable)
+    }
+
+    private fun stopProgressUpdates() {
+        handler.removeCallbacks(progressUpdateRunnable)
     }
 
     fun setText(text: String?) {
@@ -202,11 +213,7 @@ class VoicePlayerView @JvmOverloads constructor(
         completed = false
         setState(STATE_PAUSING)
         animationView.visibility = GONE
-        if (timer != null) {
-            timer!!.cancel()
-            timer = null
-        }
-        timer = Timer()
+        stopProgressUpdates()
     }
 
     fun startPlay() {
@@ -256,23 +263,20 @@ class VoicePlayerView @JvmOverloads constructor(
         forceReset = false
         hasPrepared = false
         completed = false
+        stopProgressUpdates()
         try {
             player!!.setDataSource(url)
             player!!.prepare()
             setState(STATE_LOADING)
         } catch (e: IOException) {
             e.printStackTrace()
-            Log.e(TAG, "set dataSource error", e)
         } catch (e: IllegalStateException) {
-            Log.e(TAG, "set dataSource error", e)
+            e.printStackTrace()
         }
     }
 
     fun release() {
-        if (timer != null) {
-            timer!!.cancel()
-            timer = null
-        }
+        stopProgressUpdates()
         if (player != null) {
             player!!.release()
             player = null
@@ -288,13 +292,10 @@ class VoicePlayerView @JvmOverloads constructor(
             initMediaPlayer()
         }
         if (!isThisPlaying) {
-            Log.i(TAG, "toggleStatus: startPlay")
             startPlay()
         } else if (player!!.isPlaying) {
-            Log.i(TAG, "toggleStatus: pause")
             pause()
         } else {
-            Log.i(TAG, "toggleStatus: play")
             play()
         }
     }
@@ -307,6 +308,7 @@ class VoicePlayerView @JvmOverloads constructor(
             }
             player!!.start()
             setState(STATE_PLAYING)
+            startProgressUpdates()
         }
     }
 
@@ -317,29 +319,21 @@ class VoicePlayerView @JvmOverloads constructor(
         if (player != null && hasPrepared && player!!.isPlaying) {
             player!!.pause()
             setState(STATE_PAUSING)
+            stopProgressUpdates()
         }
     }
 
     override fun onPlaybackStateChanged(playbackState: Int) {
         if (playbackState == androidx.media3.common.Player.STATE_READY) {
-            Log.i(TAG, "onPrepared: ")
             hasPrepared = true
             animationView.visibility = VISIBLE
             play()
             setState(STATE_PLAYING)
             setText(calculateTime(duration / 1000))
-            timer!!.schedule(object : TimerTask() {
-                override fun run() {
-                    if (!completed) {
-                        Companion.handler.post {
-                            setText(calculateTime((player?.currentPosition ?: 0) / 1000))
-                        }
-                    }
-                }
-            }, 0, 50)
         } else if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
             setState(STATE_PAUSING)
             completed = true
+            stopProgressUpdates()
         }
     }
 
@@ -505,10 +499,10 @@ class VoicePlayerView @JvmOverloads constructor(
     }
 
     companion object {
-        const val TAG = "AudioView"
         const val STATE_LOADING = 0
         const val STATE_PLAYING = 1
         const val STATE_PAUSING = 2
-        val handler = Handler(Looper.getMainLooper())
+        private const val PROGRESS_UPDATE_INTERVAL_MS = 250L
+        private val handler = Handler(Looper.getMainLooper())
     }
 }

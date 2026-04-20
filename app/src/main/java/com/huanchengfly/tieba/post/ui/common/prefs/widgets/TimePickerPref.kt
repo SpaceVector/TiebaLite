@@ -14,10 +14,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.unit.toSize
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.huanchengfly.tieba.post.getString
@@ -71,8 +68,6 @@ fun TimePickerPerf(
     //value of the TextField which changes every time the text is modified
     var timeVal by remember { mutableStateOf(value) }
 
-    var dialogSize by remember { mutableStateOf(Size.Zero) }
-
 
     LaunchedEffect(datastore.data) {
         datastore.data.collectLatest { pref ->
@@ -92,7 +87,8 @@ fun TimePickerPerf(
             } catch (e: Exception) {
                 Log.e(
                     "EditTextPref",
-                    "Could not write pref $key to database. ${e.printStackTrace()}"
+                    "Could not write pref $key to database.",
+                    e
                 )
             }
         }
@@ -125,9 +121,6 @@ fun TimePickerPerf(
                 timeVal = it
                 onValueChange(it)
                 edit()
-            },
-            modifier = Modifier.onGloballyPositioned {
-                dialogSize = it.size.toSize()
             },
             dialogState = dialogState,
             onValueChange = {

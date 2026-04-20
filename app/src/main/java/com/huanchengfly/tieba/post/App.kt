@@ -52,14 +52,18 @@ import com.microsoft.appcenter.distribute.ReleaseDetails
 import com.microsoft.appcenter.distribute.UpdateAction
 import com.microsoft.appcenter.distribute.UpdateTrack
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import net.swiftzer.semver.SemVer
 import org.litepal.LitePal
-import kotlin.concurrent.thread
 
 
 @HiltAndroidApp
 class App : Application(), SketchFactory {
     private val mActivityList: MutableList<Activity> = mutableListOf()
+    private val startupScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @RequiresApi(api = 28)
     private fun setWebViewPath(context: Context) {
@@ -105,7 +109,7 @@ class App : Application(), SketchFactory {
         ThemeUtils.init(ThemeDelegate)
         registerActivityLifecycleCallbacks(ClipBoardLinkDetector)
         registerActivityLifecycleCallbacks(OAIDGetter)
-        thread {
+        startupScope.launch {
             BlockManager.init()
             EmoticonManager.init(this@App)
         }

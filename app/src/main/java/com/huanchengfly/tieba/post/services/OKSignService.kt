@@ -24,6 +24,7 @@ import com.huanchengfly.tieba.post.utils.ProgressListener
 import com.huanchengfly.tieba.post.utils.SingleAccountSigner
 import com.huanchengfly.tieba.post.utils.extension.addFlag
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -32,6 +33,7 @@ import kotlinx.coroutines.launch
 
 class OKSignService : Service(), ProgressListener {
     private val serviceJob = SupervisorJob()
+    private val serviceScope = CoroutineScope(serviceJob + Dispatchers.IO)
     private var signJob: Job? = null
 
     private var lastSignData: SignDataBean? = null
@@ -43,7 +45,6 @@ class OKSignService : Service(), ProgressListener {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        Log.i(TAG, "onStartCommand")
         if (intent?.action != ACTION_START_SIGN) {
             if (signJob?.isActive != true) {
                 ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -52,7 +53,6 @@ class OKSignService : Service(), ProgressListener {
             return START_NOT_STICKY
         }
         if (signJob?.isActive == true) {
-            Log.i(TAG, "sign task already running, ignore duplicate start")
             return START_NOT_STICKY
         }
         startForeground(
@@ -72,7 +72,7 @@ class OKSignService : Service(), ProgressListener {
             stopSelf()
             return START_NOT_STICKY
         }
-        signJob = kotlinx.coroutines.CoroutineScope(serviceJob + Dispatchers.IO).launch {
+        signJob = serviceScope.launch {
             try {
                 SingleAccountSigner(this@OKSignService, loginInfo)
                     .apply {

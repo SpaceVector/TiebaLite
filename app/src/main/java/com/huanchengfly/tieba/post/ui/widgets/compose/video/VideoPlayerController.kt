@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 interface VideoPlayerController {
     fun setSource(source: VideoPlayerSource)
 
-    fun play()
+    fun play(showControls: Boolean = false)
 
     fun pause()
 

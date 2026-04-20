@@ -89,8 +89,6 @@ object SofireUtils {
                 )
                 decryptData.token
             }
-            .catch {
-                it.printStackTrace()
-            }
+            .catch { }
     }
 }

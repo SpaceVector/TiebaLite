@@ -1,6 +1,5 @@
 package com.huanchengfly.tieba.post.ui.page.thread
 
-import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -76,6 +75,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -181,11 +181,14 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import kotlin.concurrent.thread
 import kotlin.math.max
 
 private fun getDescText(
@@ -525,7 +528,7 @@ private fun ThreadLoadMoreIndicator(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterialApi::class, FlowPreview::class)
 @Destination(
     deepLinks = [
         DeepLink(uriPattern = "tblite://thread/{threadId}"),
@@ -912,38 +915,49 @@ fun ThreadPage(
         }
     }
 
-    var savedHistory by remember { mutableStateOf(false) }
-    LaunchedEffect(threadId, threadTitle, author, lastVisibilityPostId) {
-        val saveHistory = {
-            thread {
-                runCatching {
-                    if (threadTitle.isNotBlank()) {
-                        HistoryUtil.saveHistory(
-                            History(
-                                title = threadTitle,
-                                data = threadId.toString(),
-                                type = HistoryUtil.TYPE_THREAD,
-                                extras = ThreadHistoryInfoBean(
-                                    isSeeLz = isSeeLz,
-                                    pid = lastVisibilityPostId.toString(),
-                                    forumName = forum?.get { name },
-                                    floor = lastVisibilityPost?.get { floor }?.toString()
-                                ).toJson(),
-                                avatar = StringUtil.getAvatarUrl(author?.get { portrait }),
-                                username = author?.get { nameShow }
-                            ),
-                            async = true
-                        )
-                        savedHistory = true
-                        Log.i("ThreadPage", "saveHistory $lastVisibilityPostId")
-                    }
-                }
+    LaunchedEffect(
+        threadId,
+        threadTitle,
+        author?.get { portrait },
+        author?.get { nameShow },
+        forum?.get { name },
+        isSeeLz
+    ) {
+        fun saveHistory(postId: Long, floor: Int?) {
+            if (threadTitle.isBlank()) return
+            runCatching {
+                HistoryUtil.saveHistory(
+                    History(
+                        title = threadTitle,
+                        data = threadId.toString(),
+                        type = HistoryUtil.TYPE_THREAD,
+                        extras = ThreadHistoryInfoBean(
+                            isSeeLz = isSeeLz,
+                            pid = postId.toString(),
+                            forumName = forum?.get { name },
+                            floor = floor?.toString()
+                        ).toJson(),
+                        avatar = StringUtil.getAvatarUrl(author?.get { portrait }),
+                        username = author?.get { nameShow }
+                    ),
+                    async = true
+                )
             }
         }
 
-        if (!savedHistory || lastVisibilityPostId != 0L) {
-            saveHistory()
+        saveHistory(lastVisibilityPostId, lastVisibilityPost?.get { floor })
+
+        snapshotFlow {
+            lastVisibilityPost?.let { post -> post.get { id } to post.get { floor } }
         }
+            .filter { it != null && it.first != 0L }
+            .distinctUntilChanged()
+            .debounce(1000)
+            .collect { postInfo ->
+                if (postInfo != null) {
+                    saveHistory(postInfo.first, postInfo.second)
+                }
+            }
     }
 
     val pullRefreshState = rememberPullRefreshState(
@@ -1118,7 +1132,14 @@ fun ThreadPage(
             }
             items(
                 items = latestPosts,
-                key = { (item) -> "LatestPost_${item.get { id }}" }
+                key = { (item) -> "LatestPost_${item.get { id }}" },
+                contentType = { (_, _, renders, subPosts) ->
+                    when {
+                        subPosts.isNotEmpty() -> "LatestPostWithSubPosts"
+                        renders.size > 4 -> "LatestRichPost"
+                        else -> "LatestPost"
+                    }
+                }
             ) { (item, blocked, renders, subPosts) ->
                 Container {
                     PostCard(
@@ -1638,7 +1659,14 @@ fun ThreadPage(
                                 } else {
                                     items(
                                         items = data,
-                                        key = { (item) -> "Post_${item.get { id }}" }
+                                        key = { (item) -> "Post_${item.get { id }}" },
+                                        contentType = { (_, _, renders, subPosts) ->
+                                            when {
+                                                subPosts.isNotEmpty() -> "PostWithSubPosts"
+                                                renders.size > 4 -> "RichPost"
+                                                else -> "Post"
+                                            }
+                                        }
                                     ) { (item, blocked, renders, subPosts) ->
                                         Container {
                                             PostCard(

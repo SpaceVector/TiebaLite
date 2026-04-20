@@ -110,7 +110,7 @@ fun MainPage(
     )
 
     val notificationCountFlow = LocalNotificationCountFlow.current
-    LaunchedEffect(null) {
+    LaunchedEffect(notificationCountFlow) {
         notificationCountFlow.collect {
             viewModel.send(MainUiIntent.NewMessage.Receive(it))
         }
@@ -288,4 +288,3 @@ fun MainPage(
         }
     }
 }
-

@@ -1,6 +1,5 @@
 package com.huanchengfly.tieba.post.adapters
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.util.TypedValue
 import android.view.Gravity
@@ -20,10 +19,12 @@ class ChatBubbleStyleAdapter(
     bubbles: List<Bubble>
 ) : BaseSingleTypeAdapter<ChatBubbleStyleAdapter.Bubble>(context, bubbles) {
     var bubblesFontSize: Float = 0f
-        @SuppressLint("NotifyDataSetChanged")
         set(value) {
+            if (field == value) return
             field = value
-            notifyDataSetChanged()
+            if (itemCount > 0) {
+                notifyItemRangeChanged(0, itemCount)
+            }
         }
 
     override fun getItemLayoutId(): Int = R.layout.item_chat_bubble
@@ -58,6 +59,7 @@ class ChatBubbleStyleAdapter(
         viewHolder.setText(R.id.chat_bubble_text, item.text)
         viewHolder.setVisibility(R.id.chat_bubble_text, item.text != null)
         val customViewParent = viewHolder.getView<FrameLayout>(R.id.chat_bubble_custom_view)
+        customViewParent.removeAllViews()
         val customView = item.customViewBuilder?.invoke(context, item.position, customViewParent)
         if (customView != null) {
             customViewParent

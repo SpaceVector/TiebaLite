@@ -6,8 +6,6 @@ import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -182,7 +180,6 @@ class EditProfileActivity : BaseActivity() {
             flowOf(EditProfileIntent.Init(AccountUtil.getUid() ?: "0"))
         )
     }
-    private val handler = Handler(Looper.getMainLooper())
     override val isNeedImmersionBar: Boolean
         get() = false
 
@@ -199,9 +196,7 @@ class EditProfileActivity : BaseActivity() {
                 PageEditProfile(viewModel, onBackPressed = ::dispatchBackPress)
             }
         }
-        handler.post {
-            intents.onEach(viewModel::send).launchIn(lifecycleScope)
-        }
+        intents.onEach(viewModel::send).launchIn(lifecycleScope)
         viewModel.uiEventFlow
             .filterIsInstance<EditProfileEvent>()
             .collectIn(this) { handleEvent(it) }

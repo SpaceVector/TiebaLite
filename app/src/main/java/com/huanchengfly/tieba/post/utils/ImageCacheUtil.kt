@@ -2,11 +2,14 @@ package com.huanchengfly.tieba.post.utils
 
 import android.content.Context
 import android.os.Looper
-import android.text.TextUtils
 import com.github.panpf.sketch.sketch
 import java.io.File
 import java.math.BigDecimal
-import kotlin.concurrent.thread
+import java.math.RoundingMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
  * 图片缓存工具类
@@ -14,6 +17,7 @@ import kotlin.concurrent.thread
  */
 object ImageCacheUtil {
     const val DEFAULT_DISK_CACHE_DIR = "image_manager_disk_cache"
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     /**
      * 清除图片磁盘缓存
@@ -21,7 +25,7 @@ object ImageCacheUtil {
     fun clearImageDiskCache(context: Context) {
         try {
             if (Looper.myLooper() == Looper.getMainLooper()) {
-                thread {
+                ioScope.launch {
                     context.sketch
                         .downloadCache
                         .clear()
@@ -63,10 +67,8 @@ object ImageCacheUtil {
     fun clearImageAllCache(context: Context) {
         clearImageDiskCache(context)
         clearImageMemoryCache(context)
-        val imageExternalCacheDir =
-            context.externalCacheDir.toString() + File.separator + DEFAULT_DISK_CACHE_DIR
-        deleteFolderFile(imageExternalCacheDir, false)
-        deleteFolderFile(context.cacheDir.toString() + File.separator + ".shareTemp", false)
+        context.externalCacheDir?.let { deleteFolderFile(File(it, DEFAULT_DISK_CACHE_DIR), false) }
+        deleteFolderFile(File(context.cacheDir, ".shareTemp"), false)
     }
 
     /**
@@ -120,27 +122,23 @@ object ImageCacheUtil {
      * @param filePath       filePath
      * @param deleteThisPath deleteThisPath
      */
-    private fun deleteFolderFile(filePath: String, deleteThisPath: Boolean) {
-        if (!TextUtils.isEmpty(filePath)) {
-            try {
-                val file = File(filePath)
-                if (file.isDirectory) {
-                    file.listFiles()?.forEach {
-                        deleteFolderFile(it.absolutePath, true)
-                    }
+    private fun deleteFolderFile(file: File, deleteThisPath: Boolean) {
+        if (!file.exists()) {
+            return
+        }
+        try {
+            if (file.isDirectory) {
+                file.listFiles()?.forEach {
+                    deleteFolderFile(it, true)
                 }
-                if (deleteThisPath) {
-                    if (!file.isDirectory) {
-                        file.delete()
-                    } else {
-                        if (file.listFiles().isNullOrEmpty()) {
-                            file.delete()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
+            if (deleteThisPath) {
+                if (!file.isDirectory || file.listFiles().isNullOrEmpty()) {
+                    file.delete()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -158,19 +156,19 @@ object ImageCacheUtil {
         val megaByte = kiloByte / 1024
         if (megaByte < 1) {
             val result1 = BigDecimal(java.lang.Double.toString(kiloByte))
-            return result1.setScale(2, BigDecimal.ROUND_HALF_UP).toPlainString() + "KB"
+            return result1.setScale(2, RoundingMode.HALF_UP).toPlainString() + "KB"
         }
         val gigaByte = megaByte / 1024
         if (gigaByte < 1) {
             val result2 = BigDecimal(java.lang.Double.toString(megaByte))
-            return result2.setScale(2, BigDecimal.ROUND_HALF_UP).toPlainString() + "MB"
+            return result2.setScale(2, RoundingMode.HALF_UP).toPlainString() + "MB"
         }
         val teraBytes = gigaByte / 1024
         if (teraBytes < 1) {
             val result3 = BigDecimal(java.lang.Double.toString(gigaByte))
-            return result3.setScale(2, BigDecimal.ROUND_HALF_UP).toPlainString() + "GB"
+            return result3.setScale(2, RoundingMode.HALF_UP).toPlainString() + "GB"
         }
         val result4 = BigDecimal(teraBytes)
-        return result4.setScale(2, BigDecimal.ROUND_HALF_UP).toPlainString() + "TB"
+        return result4.setScale(2, RoundingMode.HALF_UP).toPlainString() + "TB"
     }
 }

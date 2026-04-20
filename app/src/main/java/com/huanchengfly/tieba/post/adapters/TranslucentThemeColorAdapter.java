@@ -28,7 +28,7 @@ public class TranslucentThemeColorAdapter extends RecyclerView.Adapter<MyViewHol
             Color.parseColor("#FF512DA8")
     };
     private final WeakReference<Context> mContextWeakReference;
-    private List<Integer> mColors;
+    private List<Integer> mColors = new ArrayList<>();
     private OnItemClickListener<Integer> mOnItemClickListener;
     private int mSelectedColor;
 
@@ -42,7 +42,6 @@ public class TranslucentThemeColorAdapter extends RecyclerView.Adapter<MyViewHol
 
     public void setOnItemClickListener(OnItemClickListener<Integer> onItemClickListener) {
         mOnItemClickListener = onItemClickListener;
-        notifyDataSetChanged();
     }
 
     public Context getContext() {
@@ -50,19 +49,32 @@ public class TranslucentThemeColorAdapter extends RecyclerView.Adapter<MyViewHol
     }
 
     public void setPalette(Palette palette) {
-        mColors = new ArrayList<>();
+        List<Integer> colorsToApply = new ArrayList<>();
         int[] colors = new int[]{
                 palette.getVibrantColor(Color.TRANSPARENT),
                 palette.getMutedColor(Color.TRANSPARENT),
                 palette.getDominantColor(Color.TRANSPARENT)
         };
         for (int color : colors) {
-            if (color != Color.TRANSPARENT) mColors.add(color);
+            if (color != Color.TRANSPARENT) colorsToApply.add(color);
         }
         for (int color : sColors) {
-            mColors.add(color);
+            colorsToApply.add(color);
         }
-        notifyDataSetChanged();
+        int oldSize = mColors.size();
+        mColors = colorsToApply;
+        if (!mColors.contains(mSelectedColor)) {
+            mSelectedColor = 0;
+        }
+        int changedCount = Math.min(oldSize, mColors.size());
+        if (changedCount > 0) {
+            notifyItemRangeChanged(0, changedCount);
+        }
+        if (mColors.size() > oldSize) {
+            notifyItemRangeInserted(oldSize, mColors.size() - oldSize);
+        } else if (oldSize > mColors.size()) {
+            notifyItemRangeRemoved(mColors.size(), oldSize - mColors.size());
+        }
     }
 
     @NonNull
@@ -74,8 +86,15 @@ public class TranslucentThemeColorAdapter extends RecyclerView.Adapter<MyViewHol
     @Override
     public void onBindViewHolder(@NonNull MyViewHolder holder, int position) {
         holder.setItemOnClickListener(v -> {
+            int previousSelectedColor = mSelectedColor;
             mSelectedColor = mColors.get(position);
-            notifyDataSetChanged();
+            if (previousSelectedColor != mSelectedColor) {
+                int previousPosition = mColors.indexOf(previousSelectedColor);
+                if (previousPosition >= 0) {
+                    notifyItemChanged(previousPosition);
+                }
+                notifyItemChanged(position);
+            }
             if (getOnItemClickListener() != null) {
                 getOnItemClickListener().onClick(holder.itemView, mColors.get(position), position, 0);
             }

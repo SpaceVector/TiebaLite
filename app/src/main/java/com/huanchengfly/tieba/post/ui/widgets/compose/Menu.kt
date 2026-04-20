@@ -3,10 +3,11 @@ package com.huanchengfly.tieba.post.ui.widgets.compose
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.offset
@@ -27,12 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.common.theme.compose.menuBackground
-import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 class MenuScope(
@@ -42,6 +43,18 @@ class MenuScope(
     fun dismiss() {
         onDismiss?.invoke()
         menuState.expanded = false
+    }
+}
+
+private fun Modifier.captureMenuPressOffset(
+    menuState: MenuState
+) = pointerInput(menuState) {
+    awaitEachGesture {
+        val down = awaitFirstDown(
+            requireUnconsumed = false,
+            pass = PointerEventPass.Initial
+        )
+        menuState.offset = down.position
     }
 }
 
@@ -59,19 +72,11 @@ fun ClickMenu(
     content: @Composable () -> Unit,
 ) {
     val menuScope = MenuScope(menuState, onDismiss)
-    LaunchedEffect(key1 = null) {
-        launch {
-            interactionSource.interactions
-                .filterIsInstance<PressInteraction.Press>()
-                .collect {
-                    menuState.offset = it.pressPosition
-                }
-        }
-    }
     Box {
         val triggerModifier = if (triggerShape != null) Modifier.clip(triggerShape) else Modifier
         Box(
             modifier = triggerModifier
+                .captureMenuPressOffset(menuState)
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = indication,
@@ -118,18 +123,10 @@ fun LongClickMenu(
     indication: Indication? = LocalIndication.current,
     content: @Composable () -> Unit,
 ) {
-    LaunchedEffect(Unit) {
-        launch {
-            interactionSource.interactions
-                .filterIsInstance<PressInteraction.Press>()
-                .collect {
-                    menuState.offset = it.pressPosition
-                }
-        }
-    }
     Box(
         modifier = modifier
             .clip(shape)
+            .captureMenuPressOffset(menuState)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = indication,

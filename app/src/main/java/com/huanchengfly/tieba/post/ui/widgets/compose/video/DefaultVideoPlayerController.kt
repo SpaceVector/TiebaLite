@@ -2,17 +2,18 @@ package com.huanchengfly.tieba.post.ui.widgets.compose.video
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Player.STATE_READY
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.VideoSize
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
@@ -45,6 +46,8 @@ internal class DefaultVideoPlayerController(
     private val fullScreenModeChangedListener: OnFullScreenModeChangedListener? = null
 ) : VideoPlayerController {
     private val released = AtomicBoolean(false)
+    private var speedBeforeLongPress = 1f
+    private var playWhenReadyBeforeLongPress = false
 
     private val _state = MutableStateFlow(initialState)
     override val state: StateFlow<VideoPlayerState>
@@ -98,15 +101,10 @@ internal class DefaultVideoPlayerController(
                     it.invoke()
                     null
                 }
-
-                updateDurationAndPositionJob?.cancel()
-                updateDurationAndPositionJob = coroutineScope.launch {
-                    while (this.isActive) {
-                        updateDurationAndPosition()
-                        delay(250)
-                    }
-                }
             }
+
+            updateDurationAndPosition()
+            syncProgressUpdates()
 
             _state.set {
                 copy(
@@ -120,6 +118,22 @@ internal class DefaultVideoPlayerController(
             _state.set {
                 copy(isPlaying = playWhenReady)
             }
+            syncProgressUpdates()
+            if (!playWhenReady) {
+                updateDurationAndPosition()
+            }
+        }
+
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            _state.set { copy(isPlaying = isPlaying) }
+            syncProgressUpdates()
+            if (!isPlaying) {
+                updateDurationAndPosition()
+            }
+        }
+
+        override fun onPlayerError(error: PlaybackException) {
+            syncProgressUpdates()
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -177,7 +191,6 @@ internal class DefaultVideoPlayerController(
     }
 
     fun initialize() {
-        Log.i("VideoPlayerController", "$this initialize")
         released.set(false)
         val currentState = _state.value
         initialStateRunner = {
@@ -197,13 +210,17 @@ internal class DefaultVideoPlayerController(
      */
     private val waitPlayerViewToPrepare = AtomicBoolean(false)
 
-    override fun play() {
+    override fun play(showControls: Boolean) {
         _state.set { copy(startedPlay = true) }
         if (exoPlayer.playbackState == STATE_ENDED) {
             exoPlayer.seekTo(0)
         }
         exoPlayer.playWhenReady = true
-        autoHideControls()
+        if (showControls) {
+            showControls(autoHide = true)
+        } else {
+            hideControls()
+        }
     }
 
     override fun pause() {
@@ -212,7 +229,42 @@ internal class DefaultVideoPlayerController(
 
     override fun togglePlaying() {
         if (exoPlayer.isPlaying) pause()
-        else play()
+        else play(showControls = true)
+    }
+
+    private fun setPlaybackSpeed(speed: Float) {
+        exoPlayer.setPlaybackParameters(PlaybackParameters(speed))
+        _state.set { copy(playbackSpeed = speed) }
+    }
+
+    fun startLongPressSpeedPlay() {
+        val player = _exoPlayer ?: return
+        if (_state.value.isLongPressSpeeding) {
+            return
+        }
+        speedBeforeLongPress = player.playbackParameters.speed
+        playWhenReadyBeforeLongPress = player.playWhenReady
+        if (player.playbackState == STATE_ENDED) {
+            player.seekTo(0)
+        }
+        setPlaybackSpeed(2f)
+        player.playWhenReady = true
+        _state.set { copy(isLongPressSpeeding = true) }
+    }
+
+    fun stopLongPressSpeedPlay() {
+        val player = _exoPlayer ?: return
+        if (!_state.value.isLongPressSpeeding) {
+            return
+        }
+        player.setPlaybackParameters(PlaybackParameters(speedBeforeLongPress))
+        player.playWhenReady = playWhenReadyBeforeLongPress
+        _state.set {
+            copy(
+                playbackSpeed = speedBeforeLongPress,
+                isLongPressSpeeding = false
+            )
+        }
     }
 
     override fun quickSeekForward() {
@@ -244,6 +296,8 @@ internal class DefaultVideoPlayerController(
 
     override fun setSource(source: VideoPlayerSource) {
         this.source = source
+        previewSourcePrepared = false
+        _previewExoPlayer?.stop()
         if (playerView == null) {
             waitPlayerViewToPrepare.set(true)
         } else {
@@ -269,13 +323,36 @@ internal class DefaultVideoPlayerController(
     }
 
     private fun cancelAutoHideControls() {
-        Log.i("VideoPlayerController", "cancelAutoHideControls")
         autoHideControllerJob?.cancel()
+    }
+
+    private fun cancelProgressUpdates() {
+        updateDurationAndPositionJob?.cancel()
+        updateDurationAndPositionJob = null
+    }
+
+    private fun syncProgressUpdates() {
+        val player = _exoPlayer ?: run {
+            cancelProgressUpdates()
+            return
+        }
+        if (!player.isPlaying) {
+            cancelProgressUpdates()
+            return
+        }
+        if (updateDurationAndPositionJob?.isActive == true) {
+            return
+        }
+        updateDurationAndPositionJob = coroutineScope.launch {
+            while (isActive && player.isPlaying) {
+                updateDurationAndPosition()
+                delay(250)
+            }
+        }
     }
 
     private fun autoHideControls() {
         cancelAutoHideControls()
-        Log.i("VideoPlayerController", "autoHideControls")
         autoHideControllerJob = coroutineScope.launch {
             delay(5000)
             hideControls()
@@ -309,34 +386,44 @@ internal class DefaultVideoPlayerController(
     }
 
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
-    private fun prepare() {
-        fun createVideoSource(): MediaSource {
-            val dataSourceFactory: DataSource.Factory = DefaultDataSource.Factory(context)
+    private fun createVideoSource(): MediaSource {
+        val dataSourceFactory: DataSource.Factory = DefaultDataSource.Factory(context)
 
-            return when (val source = source) {
-                is VideoPlayerSource.Raw -> {
-                    ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(
-                            MediaItem.fromUri(
-                                RawResourceDataSource.buildRawResourceUri(
-                                    source.resId
-                                )
+        return when (val source = source) {
+            is VideoPlayerSource.Raw -> {
+                ProgressiveMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(
+                        MediaItem.fromUri(
+                            RawResourceDataSource.buildRawResourceUri(
+                                source.resId
                             )
                         )
-                }
+                    )
+            }
 
-                is VideoPlayerSource.Network -> {
-                    ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(MediaItem.fromUri(source.url))
-                }
+            is VideoPlayerSource.Network -> {
+                ProgressiveMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(MediaItem.fromUri(source.url))
             }
         }
+    }
 
+    private var previewSourcePrepared = false
+
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private fun prepare() {
         exoPlayer.setMediaSource(createVideoSource())
-        previewExoPlayer.setMediaSource(createVideoSource())
-
         exoPlayer.prepare()
+    }
+
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private fun preparePreviewPlayerIfNeeded() {
+        if (previewSourcePrepared || !this::source.isInitialized) {
+            return
+        }
+        previewExoPlayer.setMediaSource(createVideoSource())
         previewExoPlayer.prepare()
+        previewSourcePrepared = true
     }
 
     fun playerViewAvailable(playerView: PlayerView) {
@@ -360,10 +447,18 @@ internal class DefaultVideoPlayerController(
     }
 
     fun previewPlayerViewAvailable(playerView: PlayerView) {
+        preparePreviewPlayerIfNeeded()
         playerView.player = previewExoPlayer
     }
 
+    fun previewPlayerViewRelease(playerView: PlayerView) {
+        if (playerView.player != null) {
+            playerView.player = null
+        }
+    }
+
     fun previewSeekTo(position: Long) {
+        preparePreviewPlayerIfNeeded()
         // position is very accurate. Thumbnail doesn't have to be.
         // Roll to the nearest "even" integer.
         val seconds = position.toInt() / 1000
@@ -373,26 +468,37 @@ internal class DefaultVideoPlayerController(
         }
     }
 
+    fun clearPreviewPlayer() {
+        _previewExoPlayer?.release()
+        _previewExoPlayer = null
+        previewSourcePrepared = false
+    }
+
     override fun reset() {
+        stopLongPressSpeedPlay()
+        cancelProgressUpdates()
         exoPlayer.stop()
-        previewExoPlayer.stop()
+        clearPreviewPlayer()
     }
 
     override fun release() {
-        Log.i("VideoPlayerController", "$this release")
         if (released.compareAndSet(false, true)) {
             cancelAutoHideControls()
-            updateDurationAndPositionJob?.cancel()
-            updateDurationAndPositionJob = null
+            cancelProgressUpdates()
             playerView?.player = null
             playerView = null
             _exoPlayer?.run {
                 removeListener(playerListener)
                 release()
             }
-            _previewExoPlayer?.release()
             _exoPlayer = null
-            _previewExoPlayer = null
+            clearPreviewPlayer()
+            _state.set {
+                copy(
+                    playbackSpeed = 1f,
+                    isLongPressSpeeding = false
+                )
+            }
         }
     }
 

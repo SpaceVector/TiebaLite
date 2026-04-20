@@ -78,7 +78,8 @@ fun MultiSelectListPref(
             } catch (e: Exception) {
                 Log.e(
                     "MultiSelectListPref",
-                    "Could not write pref $key to database. ${e.printStackTrace()}"
+                    "Could not write pref $key to database.",
+                    e
                 )
             }
         }

@@ -8,8 +8,6 @@ import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.AnimationSpec
@@ -114,9 +112,10 @@ import com.ramcosta.composedestinations.utils.currentDestinationAsState
 import com.ramcosta.composedestinations.utils.currentDestinationFlow
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
@@ -129,7 +128,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 val LocalNotificationCountFlow =
-    staticCompositionLocalOf<Flow<Int>> { throw IllegalStateException("not allowed here!") }
+    staticCompositionLocalOf<StateFlow<Int>> { throw IllegalStateException("not allowed here!") }
 val LocalDevicePosture =
     staticCompositionLocalOf<State<DevicePosture>> { throw IllegalStateException("not allowed here!") }
 val LocalNavController =
@@ -152,11 +151,11 @@ fun rememberBottomSheetNavigator(
 
 @AndroidEntryPoint
 class MainActivityV2 : BaseComposeActivity() {
-    private val handler = Handler(Looper.getMainLooper())
     private val newMessageReceiver: BroadcastReceiver = NewMessageReceiver()
+    private var newMessageReceiverRegistered = false
+    private var notificationPermissionJob: Job? = null
 
-    private val notificationCountFlow: MutableSharedFlow<Int> =
-        MutableSharedFlow(replay = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val notificationCountFlow: MutableStateFlow<Int> = MutableStateFlow(0)
 
     private val pickMediasLauncher =
         registerPickMediasLauncher {
@@ -260,7 +259,6 @@ class MainActivityV2 : BaseComposeActivity() {
                     .flowOn(Dispatchers.IO)
                     .catch { e ->
                         toastShort(e.getErrorMessage())
-                        e.printStackTrace()
                     }
                     .collect()
             }
@@ -291,12 +289,27 @@ class MainActivityV2 : BaseComposeActivity() {
                 newIntentFilter(NotifyJobService.ACTION_NEW_MESSAGE),
                 ContextCompat.RECEIVER_NOT_EXPORTED
             )
+            newMessageReceiverRegistered = true
             NotifyJobService.scheduleImmediate(this)
             NotifyJobService.schedulePeriodic(this)
         }
-        handler.postDelayed({
+        notificationPermissionJob?.cancel()
+        notificationPermissionJob = lifecycleScope.launch {
+            delay(100)
             requestNotificationPermission()
-        }, 100)
+        }
+    }
+
+    override fun onStop() {
+        notificationPermissionJob?.cancel()
+        notificationPermissionJob = null
+        if (newMessageReceiverRegistered) {
+            runCatching {
+                unregisterReceiver(newMessageReceiver)
+            }
+            newMessageReceiverRegistered = false
+        }
+        super.onStop()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -537,8 +550,8 @@ class MainActivityV2 : BaseComposeActivity() {
                 val channel = intent.getStringExtra("channel")
                 val count = intent.getIntExtra("count", 0)
                 if (channel != null && channel == NotifyJobService.CHANNEL_TOTAL) {
-                    lifecycleScope.launch {
-                        notificationCountFlow.emit(count)
+                    if (notificationCountFlow.value != count) {
+                        notificationCountFlow.value = count
                     }
                 }
             }

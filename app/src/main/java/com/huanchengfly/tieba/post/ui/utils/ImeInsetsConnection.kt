@@ -3,7 +3,6 @@ package com.huanchengfly.tieba.post.ui.utils
 import android.graphics.Insets
 import android.os.Build
 import android.os.CancellationSignal
-import android.util.Log
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowInsetsAnimationControlListener
@@ -89,7 +88,6 @@ internal fun rememberImeInsetsConnection(
     }
     SideEffect {
         connection.isImeVisible = isImeVisible
-        Log.i("ImeInsetsConnection", "isImeVisible: $isImeVisible")
     }
     DisposableEffect(connection) {
         onDispose {
@@ -140,10 +138,7 @@ private class ImeInsetsNestedScrollConnection(
      * we'd accumulate error.
      */
     private var partialConsumption = 0f
-        set(value) {
-            field = value
-            Log.i("ImeInsetsConnection", "set partialConsumption: $value")
-        }
+        set(value) { field = value }
 
     /**
      * The [Job] that is launched to animate the insets during a fling. This can be canceled

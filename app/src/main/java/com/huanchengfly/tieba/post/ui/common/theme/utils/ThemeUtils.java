@@ -91,7 +91,6 @@ public class ThemeUtils {
 
     private static void refreshView(View view, ExtraRefreshable extraRefreshable) {
         if (view == null) return;
-        view.destroyDrawingCache();
         if (view instanceof Tintable) {
             ((Tintable) view).tint();
             if (view instanceof ViewGroup) {
@@ -118,7 +117,10 @@ public class ThemeUtils {
                 RecyclerView recyclerView = (RecyclerView) view;
                 recyclerView.getRecycledViewPool().clear();
                 if (recyclerView.getAdapter() != null) {
-                    recyclerView.getAdapter().notifyDataSetChanged();
+                    int itemCount = recyclerView.getAdapter().getItemCount();
+                    if (itemCount > 0) {
+                        recyclerView.getAdapter().notifyItemRangeChanged(0, itemCount);
+                    }
                 }
                 for (int i = 0; i < recyclerView.getItemDecorationCount(); i++) {
                     RecyclerView.ItemDecoration itemDecoration = recyclerView.getItemDecorationAt(i);

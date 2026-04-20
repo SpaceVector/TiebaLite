@@ -27,9 +27,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.huanchengfly.tieba.post.App
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.retrofit.exception.TiebaException
-import com.huanchengfly.tieba.post.dataStore
 import com.huanchengfly.tieba.post.dpToPxFloat
-import com.huanchengfly.tieba.post.getBoolean
 import com.huanchengfly.tieba.post.toastShort
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ColorStateListUtils
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
@@ -251,11 +249,10 @@ fun showErrorSnackBar(view: View, throwable: Throwable) {
 
 fun calcStatusBarColorInt(context: Context, @ColorInt originColor: Int): Int {
     var darkerStatusBar = true
-    val isToolbarPrimaryColor =
-        context.dataStore.getBoolean(ThemeUtil.KEY_CUSTOM_TOOLBAR_PRIMARY_COLOR, false)
+    val isToolbarPrimaryColor = context.appPreferences.toolbarPrimaryColor
     if (!ThemeUtil.isTranslucentTheme() && !ThemeUtil.isNightMode() && !isToolbarPrimaryColor) {
         darkerStatusBar = false
-    } else if (!context.dataStore.getBoolean("status_bar_darker", true)) {
+    } else if (!context.appPreferences.statusBarDarker) {
         darkerStatusBar = false
     }
     return if (darkerStatusBar) ColorUtils.getDarkerColor(originColor) else originColor

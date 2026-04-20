@@ -357,7 +357,6 @@ fun TopAppBarContainer(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onDoubleClick = {
-                        Log.i("TopAppBarContainer", "TopAppBarContainer: onDoubleClick")
                         coroutineScope.emitGlobalEvent(GlobalEvent.ScrollToTop)
                     },
                     onClick = {},

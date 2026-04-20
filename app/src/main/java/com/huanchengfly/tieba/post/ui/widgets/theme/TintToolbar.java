@@ -6,7 +6,6 @@ import android.content.res.ColorStateList;
 import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MenuItem;
 
 import androidx.annotation.Nullable;
@@ -17,8 +16,6 @@ import com.huanchengfly.tieba.post.ui.common.theme.interfaces.Tintable;
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils;
 
 public class TintToolbar extends Toolbar implements Tintable {
-    public static final String TAG = "TintToolbar";
-
     private int mBackgroundTintResId;
     private int mItemTintResId;
     private int mSecondaryItemTintResId;
@@ -119,7 +116,6 @@ public class TintToolbar extends Toolbar implements Tintable {
             drawable.setTintList(colorStateList);
             drawable.invalidateSelf();
             menuItem.setIcon(drawable);
-            Log.i(TAG, "tintMenuIcon: " + i + "finish");
         }
     }
 

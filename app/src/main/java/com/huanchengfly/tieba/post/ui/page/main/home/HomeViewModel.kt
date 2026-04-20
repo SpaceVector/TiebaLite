@@ -94,12 +94,14 @@ class HomeViewModel : BaseViewModel<HomeUiIntent, HomePartialChange, HomeUiState
                 }
                 .onStart { emit(HomePartialChange.Refresh.Start) }
                 .catch { emit(HomePartialChange.Refresh.Failure(it)) }
+                .flowOn(Dispatchers.IO)
 
         @Suppress("USELESS_CAST")
         private fun produceRefreshHistoryPartialChangeFlow(): Flow<HomePartialChange.RefreshHistory> =
             HistoryUtil.getFlow(HistoryUtil.TYPE_FORUM, 0)
                 .map { HomePartialChange.RefreshHistory.Success(it) as HomePartialChange.RefreshHistory }
                 .catch { emit(HomePartialChange.RefreshHistory.Failure(it)) }
+                .flowOn(Dispatchers.IO)
 
         private fun HomeUiIntent.TopForums.Delete.toPartialChangeFlow() =
             flow {
