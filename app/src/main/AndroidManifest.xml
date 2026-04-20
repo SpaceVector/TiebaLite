@@ -128,6 +128,18 @@
             android:resizeableActivity="true"
             android:theme="@style/Theme.Splash"
             android:windowSoftInputMode="adjustResize">
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcut_new" />
+        </activity>
+
+        <activity-alias
+            android:name=".activities.MainActivity"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_new"
+            android:roundIcon="@mipmap/ic_launcher_new_round"
+            android:targetActivity=".MainActivityV2">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -151,22 +163,30 @@
                 <category android:name="android.intent.category.BROWSABLE" />
             </intent-filter>
 
-            <meta-data
-                android:name="android.app.shortcuts"
-                android:resource="@xml/shortcut_new" />
-        </activity>
-
-        <activity-alias
-            android:name=".activities.MainActivity"
-            android:enabled="false"
-            android:exported="true"
-            android:icon="@mipmap/ic_launcher_new"
-            android:roundIcon="@mipmap/ic_launcher_new_round"
-            android:targetActivity=".MainActivityV2">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+                <action android:name="android.intent.action.VIEW" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="http" />
             </intent-filter>
 
             <meta-data
@@ -187,6 +207,49 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tblite" />
+            </intent-filter>
+
+            <intent-filter>
+                <data
+                    android:host="unidispatch"
+                    android:scheme="com.baidu.tieba" />
+
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="http" />
+            </intent-filter>
+
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcut_new" />
@@ -205,6 +268,49 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tblite" />
+            </intent-filter>
+
+            <intent-filter>
+                <data
+                    android:host="unidispatch"
+                    android:scheme="com.baidu.tieba" />
+
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="http" />
+            </intent-filter>
+
             <meta-data
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcut_new" />
@@ -220,6 +326,49 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="tblite" />
+            </intent-filter>
+
+            <intent-filter>
+                <data
+                    android:host="unidispatch"
+                    android:scheme="com.baidu.tieba" />
+
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+            </intent-filter>
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tieba.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="wapp.baidu.com"
+                    android:scheme="http" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="https" />
+                <data
+                    android:host="tiebac.baidu.com"
+                    android:scheme="http" />
             </intent-filter>
 
             <meta-data

@@ -75,6 +75,7 @@ import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.page.NavGraphs
 import com.huanchengfly.tieba.post.ui.page.destinations.ForumPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
+import com.huanchengfly.tieba.post.ui.page.destinations.WebViewPageDestination
 import com.huanchengfly.tieba.post.ui.utils.DevicePosture
 import com.huanchengfly.tieba.post.ui.utils.isBookPosture
 import com.huanchengfly.tieba.post.ui.utils.isSeparating
@@ -224,22 +225,78 @@ class MainActivityV2 : BaseComposeActivity() {
     }
 
     private fun checkIntent(intent: Intent): Boolean {
-        return if (intent.data?.scheme == "com.baidu.tieba" && intent.data?.host == "unidispatch") {
-            val uri = intent.data!!
-            when (uri.path.orEmpty().lowercase()) {
-                "/frs" -> {
-                    val forumName = uri.getQueryParameter("kw") ?: return true
-                    navigate(ForumPageDestination(forumName))
-                }
+        val uri = intent.data ?: return false
+        return when {
+            uri.scheme == "com.baidu.tieba" && uri.host == "unidispatch" -> {
+                when (uri.path.orEmpty().lowercase()) {
+                    "/frs" -> {
+                        val forumName = uri.getQueryParameter("kw") ?: return true
+                        navigate(ForumPageDestination(forumName))
+                    }
 
-                "/pb" -> {
-                    val threadId = uri.getQueryParameter("tid")?.toLongOrNull() ?: return true
-                    navigate(ThreadPageDestination(threadId))
+                    "/pb" -> {
+                        val threadId = uri.getQueryParameter("tid")?.toLongOrNull() ?: return true
+                        navigate(ThreadPageDestination(threadId))
+                    }
+                }
+                true
+            }
+
+            isTiebaHttpUri(uri) -> {
+                handleTiebaHttpUri(uri)
+                true
+            }
+
+            else -> false
+        }
+    }
+
+    private fun isTiebaHttpUri(uri: Uri): Boolean {
+        val scheme = uri.scheme?.lowercase() ?: return false
+        val host = uri.host?.lowercase() ?: return false
+        return (scheme == "http" || scheme == "https") &&
+                (host == "tieba.baidu.com" || host == "wapp.baidu.com" || host == "tiebac.baidu.com")
+    }
+
+    private fun handleTiebaHttpUri(uri: Uri) {
+        val path = uri.path.orEmpty().lowercase()
+        when {
+            path == "/mo/q/checkurl" -> {
+                uri.getQueryParameter("url")
+                    ?.replace("http://https://", "https://")
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { nestedUrl ->
+                        val nestedUri = Uri.parse(nestedUrl)
+                        if (isTiebaHttpUri(nestedUri)) {
+                            handleTiebaHttpUri(nestedUri)
+                        } else {
+                            navigate(WebViewPageDestination(nestedUrl))
+                        }
+                    }
+            }
+
+            path == "/f" || path == "/mo/q/m" -> {
+                val threadId = uri.getQueryParameter("kz")?.toLongOrNull()
+                val forumName = uri.getQueryParameter("kw") ?: uri.getQueryParameter("word")
+                when {
+                    threadId != null -> navigate(ThreadPageDestination(threadId))
+                    !forumName.isNullOrBlank() -> navigate(ForumPageDestination(forumName))
+                    else -> navigate(WebViewPageDestination(uri.toString()))
                 }
             }
-            true
-        } else {
-            false
+
+            path.startsWith("/p/") -> {
+                val threadId = path.substring(3).substringBefore('/').toLongOrNull()
+                if (threadId != null) {
+                    navigate(ThreadPageDestination(threadId))
+                } else {
+                    navigate(WebViewPageDestination(uri.toString()))
+                }
+            }
+
+            else -> {
+                navigate(WebViewPageDestination(uri.toString()))
+            }
         }
     }
 
