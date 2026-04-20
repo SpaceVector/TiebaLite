@@ -542,7 +542,9 @@ private fun getDescText(
 ): String {
     val texts = listOfNotNull(
         time?.let { DateTimeUtils.getRelativeTimeString(App.INSTANCE, it) },
-        ipAddress?.let { App.INSTANCE.getString(R.string.text_ip_location, it) }
+        ipAddress?.takeIf { it.isNotBlank() }?.let {
+            App.INSTANCE.getString(R.string.text_ip_location, it)
+        }
     )
     if (texts.isEmpty()) return ""
     return texts.joinToString(" ")
@@ -559,7 +561,9 @@ private fun SubPostItem(
     onMenuCopyClick: ((String) -> Unit)? = null,
     onMenuDeleteClick: ((SubPostList) -> Unit)? = null,
 ) {
-    val (subPost, contentRenders, blocked) = item
+    val subPost = item.subPost
+    val contentRenders = item.subPostContentRenders
+    val blocked = item.blocked
     val context = LocalContext.current
     val navigator = LocalNavigator.current
     val coroutineScope = rememberCoroutineScope()
@@ -569,6 +573,12 @@ private fun SubPostItem(
     }
     val agreeNum = remember(subPost) {
         subPost.get { agree?.diffAgreeNum ?: 0L }
+    }
+    val descIpAddress = remember(item, subPost, author) {
+        item.ipAddress?.takeIf { it.isNotBlank() }
+            ?: author?.get { ip }?.takeIf { it.isNotBlank() }
+            ?: author?.get { ip_address }?.takeIf { it.isNotBlank() }
+            ?: subPost.get { location?.name }?.takeIf { it.isNotBlank() }
     }
     val menuState = rememberMenuState()
     BlockableContent(
@@ -652,7 +662,8 @@ private fun SubPostItem(
                                 Text(
                                     text = getDescText(
                                         subPost.get { time }.toLong(),
-                                        author.get { ip_address })
+                                        descIpAddress
+                                    )
                                 )
                             },
                             onClick = {

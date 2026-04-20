@@ -133,6 +133,8 @@ import com.huanchengfly.tieba.post.ui.page.destinations.ReplyPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.SubPostsSheetPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.UserProfilePageDestination
+import com.huanchengfly.tieba.post.ui.page.subposts.SubPostsIpCache
+import com.huanchengfly.tieba.post.ui.page.subposts.SubPostsNavigationCache
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockTip
@@ -176,7 +178,11 @@ import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlin.concurrent.thread
@@ -200,6 +206,52 @@ private fun getDescText(
     }
     return texts.joinToString(" · ")
 }
+
+private suspend fun prefetchSubPostIpAddresses(
+    subPosts: List<SubPostList>,
+) {
+    val missingAuthorIds = subPosts
+        .asSequence()
+        .mapNotNull { subPost ->
+            if (!subPost.author?.ip.isNullOrBlank()
+                || !subPost.author?.ip_address.isNullOrBlank()
+                || !subPost.location?.name.isNullOrBlank()
+            ) {
+                null
+            } else {
+                subPost.author?.id?.takeIf { it != 0L }
+                    ?: subPost.author_id.takeIf { it != 0L }
+            }
+        }
+        .filter { SubPostsIpCache.getUserIpAddress(it).isNullOrBlank() }
+        .distinct()
+        .take(THREAD_PRELOAD_SUB_POST_COUNT)
+        .toList()
+    if (missingAuthorIds.isEmpty()) return
+
+    missingAuthorIds.chunked(THREAD_PRELOAD_PROFILE_LOOKUP_CONCURRENCY).forEach { batchAuthorIds ->
+        coroutineScope {
+            batchAuthorIds.map { authorId ->
+                async {
+                    runCatching {
+                        TiebaApi.getInstance()
+                            .userProfileFlow(authorId)
+                            .first()
+                            .data_
+                            ?.user
+                            ?.ip_address
+                            ?.takeIf { it.isNotBlank() }
+                    }.getOrNull()?.let { ipAddress ->
+                        SubPostsIpCache.putUserIpAddress(authorId, ipAddress)
+                    }
+                }
+            }.awaitAll()
+        }
+    }
+}
+
+private const val THREAD_PRELOAD_SUB_POST_COUNT = 4
+private const val THREAD_PRELOAD_PROFILE_LOOKUP_CONCURRENCY = 2
 
 @Composable
 fun PostAgreeBtn(
@@ -969,6 +1021,30 @@ fun ThreadPage(
             },
             onOpenSubPosts = {
                 if (curForumId != null) {
+                    val post = item.get()
+                    SubPostsNavigationCache.put(
+                        threadId = threadId,
+                        postId = post.id,
+                        data = SubPostsNavigationCache.CachedData(
+                            postIpAddress = post.author?.ip_address,
+                            previewPost = post,
+                            previewSubPosts = post.sub_post_list?.sub_post_list.orEmpty(),
+                            previewTotalCount = post.sub_post_number,
+                            subPostIpAddressMap = post.sub_post_list?.sub_post_list.orEmpty()
+                                .mapNotNull { subPost ->
+                                    val ipAddress = subPost.author?.ip_address
+                                        ?.takeIf { value -> value.isNotBlank() }
+                                        ?: subPost.author?.ip?.takeIf { value -> value.isNotBlank() }
+                                        ?: subPost.location?.name?.takeIf { value -> value.isNotBlank() }
+                                        ?: return@mapNotNull null
+                                    subPost.id to ipAddress
+                                }
+                                .toMap()
+                        )
+                    )
+                    coroutineScope.launch {
+                        prefetchSubPostIpAddresses(post.sub_post_list?.sub_post_list.orEmpty())
+                    }
                     navigator.navigate(
                         SubPostsSheetPageDestination(
                             forumId = curForumId,
@@ -1786,7 +1862,15 @@ fun PostCard(
     val agreeNum = remember(postHolder) {
         post.agree?.diffAgreeNum ?: 0L
     }
+    val previewSubPosts = remember(subPosts) {
+        subPosts.map { it.subPost.get() }
+    }
     val menuState = rememberMenuState()
+    LaunchedEffect(post.id, showSubPosts, immersiveMode, previewSubPosts.size) {
+        if (showSubPosts && previewSubPosts.isNotEmpty() && !immersiveMode) {
+            prefetchSubPostIpAddresses(previewSubPosts)
+        }
+    }
     BlockableContent(
         blocked = blocked,
         blockedTip = {
