@@ -17,11 +17,15 @@ public final class CacheUtil {
 
     @Nullable
     public static <T> T getCache(Context context, String cacheId, Class<T> tClass) {
-        File cacheDir = context.getExternalCacheDir();
+        File cacheDir = context.getExternalCacheDir() != null ? context.getExternalCacheDir() : context.getCacheDir();
         File cacheFile = new File(cacheDir, MD5Util.toMd5(tClass.getName() + "_" + cacheId));
         if (cacheFile.exists()) {
             try {
-                return GsonUtil.getGson().fromJson(base64Decode(FileUtil.readFile(cacheFile)), tClass);
+                String cacheContent = FileUtil.readFile(cacheFile);
+                if (cacheContent == null) {
+                    return null;
+                }
+                return GsonUtil.getGson().fromJson(base64Decode(cacheContent), tClass);
             } catch (JsonSyntaxException e) {
                 e.printStackTrace();
             }
@@ -30,18 +34,17 @@ public final class CacheUtil {
     }
 
     public static void putCache(Context context, String cacheId, Object object) {
-        File cacheDir = context.getExternalCacheDir();
+        File cacheDir = context.getExternalCacheDir() != null ? context.getExternalCacheDir() : context.getCacheDir();
         File cacheFile = new File(cacheDir, MD5Util.toMd5(object.getClass().getName() + "_" + cacheId));
-        try {
-            if (cacheFile.exists() || cacheFile.createNewFile()) {
-                try {
-                    FileUtil.writeFile(cacheFile, base64Encode(GsonUtil.getGson().toJson(object)), false);
-                } catch (JsonSyntaxException e) {
-                    e.printStackTrace();
+        if (cacheDir.exists() || cacheDir.mkdirs()) {
+            try {
+                if (!cacheFile.exists()) {
+                    cacheFile.createNewFile();
                 }
+                FileUtil.writeFile(cacheFile, base64Encode(GsonUtil.getGson().toJson(object)), false);
+            } catch (IOException | JsonSyntaxException e) {
+                e.printStackTrace();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 

@@ -29,6 +29,7 @@ fun ProgressIndicator(
             onSeekStopped = {
                 controller.showControls(autoHide = true)
                 controller.seekTo(it)
+                controller.clearPreviewPlayer()
             },
             secondaryProgress = secondaryProgress,
             seekerPopup = {
@@ -36,10 +37,14 @@ fun ProgressIndicator(
                     modifier = Modifier
                         .height(48.dp)
                         .width(48.dp * videoSize.first / videoSize.second)
-                        .background(Color.DarkGray)
-                ) {
-                    controller.previewPlayerViewAvailable(it)
-                }
+                        .background(Color.DarkGray),
+                    onPlayerViewAvailable = {
+                        controller.previewPlayerViewAvailable(it)
+                    },
+                    onPlayerViewRelease = {
+                        controller.previewPlayerViewRelease(it)
+                    }
+                )
             },
             modifier = modifier
         )

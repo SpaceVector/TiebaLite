@@ -1,6 +1,5 @@
 package com.huanchengfly.tieba.post.arch
 
-import android.util.Log
 import androidx.compose.runtime.Stable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -30,11 +29,12 @@ abstract class BaseViewModel<
 
     var initialized = false
 
-    private val _internalUiEventFlow: MutableSharedFlow<UiEvent> = MutableSharedFlow()
+    private val _internalUiEventFlow: MutableSharedFlow<UiEvent> =
+        MutableSharedFlow(extraBufferCapacity = 1)
 
     val uiEventFlow: Flow<UiEvent> = _internalUiEventFlow
 
-    private val _intentFlow = MutableSharedFlow<Intent>()
+    private val _intentFlow = MutableSharedFlow<Intent>(extraBufferCapacity = 16)
 
     private val initialState: State by lazy { createInitialState() }
 
@@ -45,11 +45,11 @@ abstract class BaseViewModel<
 
     val uiState = partialChangeProducer.toPartialChangeFlow(_intentFlow)
         .onEach {
-            Log.i("ViewModel", "partialChange $it")
             val event = dispatchEvent(it)
             if (event != null) {
-                Log.i("ViewModel", "event $event")
-                _internalUiEventFlow.emit(event)
+                if (!_internalUiEventFlow.tryEmit(event)) {
+                    _internalUiEventFlow.emit(event)
+                }
             }
         }
         .scan(initialState) { oldState, partialChange ->
@@ -62,9 +62,10 @@ abstract class BaseViewModel<
     protected open fun dispatchEvent(partialChange: PC): UiEvent? = null
 
     fun send(intent: Intent) {
-        Log.i("ViewModel", "send $intent")
-        viewModelScope.launch {
-            _intentFlow.emit(intent)
+        if (!_intentFlow.tryEmit(intent)) {
+            viewModelScope.launch {
+                _intentFlow.emit(intent)
+            }
         }
     }
 

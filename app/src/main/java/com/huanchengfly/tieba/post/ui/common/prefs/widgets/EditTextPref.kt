@@ -16,11 +16,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.toSize
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.huanchengfly.tieba.post.ui.common.prefs.LocalPrefsDataStore
@@ -76,8 +73,6 @@ fun EditTextPref(
     //value of the TextField which changes every time the text is modified
     var textVal by remember { mutableStateOf(value) }
 
-    var dialogSize by remember { mutableStateOf(Size.Zero) }
-
     // Set value initially if it exists in datastore
     LaunchedEffect(Unit) {
         prefs?.get(selectionKey)?.also {
@@ -103,7 +98,8 @@ fun EditTextPref(
             } catch (e: Exception) {
                 Log.e(
                     "EditTextPref",
-                    "Could not write pref $key to database. ${e.printStackTrace()}"
+                    "Could not write pref $key to database.",
+                    e
                 )
             }
         }
@@ -130,9 +126,6 @@ fun EditTextPref(
                 textVal = it
                 onValueChange(it)
                 edit()
-            },
-            modifier = Modifier.onGloballyPositioned {
-                dialogSize = it.size.toSize()
             },
             dialogState = dialogState,
             initialValue = textVal,

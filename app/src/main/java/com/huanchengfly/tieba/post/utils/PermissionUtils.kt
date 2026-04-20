@@ -404,7 +404,6 @@ class ShowPermissionTipInterceptor(val permissions: List<String>, val descriptio
                 activity,
                 PermissionUtils.PermissionData(permissions, description)
             ).apply { show() }
-            tipDialog?.show()
         }, 300)
     }
 

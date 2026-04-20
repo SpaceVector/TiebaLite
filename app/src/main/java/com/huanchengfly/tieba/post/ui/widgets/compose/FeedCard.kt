@@ -1010,7 +1010,6 @@ fun VideoPlayer(
         thumbnailUrl = thumbnailUrl,
         fullScreenModeChangedListener = object : OnFullScreenModeChangedListener {
             override fun onFullScreenModeChanged(isFullScreen: Boolean) {
-                Log.i("VideoPlayer", "onFullScreenModeChanged $isFullScreen")
                 windowInsetsController?.apply {
                     systemBarsBehavior =
                         WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE

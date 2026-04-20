@@ -14,7 +14,6 @@ import android.content.Intent
 import android.content.Intent.ACTION_VIEW
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.TiebaApi
@@ -25,6 +24,7 @@ import com.huanchengfly.tieba.post.utils.JobServiceUtil
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
+import kotlin.math.abs
 
 class NotifyJobService : JobService() {
     var notificationManager: NotificationManager? = null
@@ -41,7 +41,6 @@ class NotifyJobService : JobService() {
     }
 
     override fun onStartJob(params: JobParameters): Boolean {
-        Log.i(TAG, "onStartJob")
         notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (notificationManager != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -153,7 +152,6 @@ class NotifyJobService : JobService() {
     }
 
     companion object {
-        val TAG = NotifyJobService::class.java.simpleName
         const val ACTION_NEW_MESSAGE = "com.huanchengfly.tieba.post.action.NEW_MESSAGE"
         const val CHANNEL_GROUP = "20"
         const val CHANNEL_AT = "3"
@@ -165,9 +163,30 @@ class NotifyJobService : JobService() {
         private const val CHANNEL_GROUP_NAME = "消息通知"
         private const val CHANNEL_REPLY = "2"
         private const val CHANNEL_REPLY_NAME = "回复我的"
+        private const val PREFS_NOTIFY_JOB = "notify_job"
+        private const val KEY_LAST_IMMEDIATE_SCHEDULE_AT = "last_immediate_schedule_at"
+        private const val MIN_IMMEDIATE_SCHEDULE_INTERVAL_MS = 60_000L
+
+        private fun getJobScheduler(context: Context): JobScheduler {
+            return context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+        }
+
+        private fun hasPendingJob(context: Context, jobId: Int): Boolean {
+            return getJobScheduler(context).allPendingJobs.any { it.id == jobId }
+        }
 
         fun scheduleImmediate(context: Context) {
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            if (hasPendingJob(context, IMMEDIATE_JOB_ID)) {
+                return
+            }
+            val prefs = context.getSharedPreferences(PREFS_NOTIFY_JOB, Context.MODE_PRIVATE)
+            val now = System.currentTimeMillis()
+            val lastScheduledAt = prefs.getLong(KEY_LAST_IMMEDIATE_SCHEDULE_AT, 0L)
+            if (abs(now - lastScheduledAt) < MIN_IMMEDIATE_SCHEDULE_INTERVAL_MS) {
+                return
+            }
+            prefs.edit().putLong(KEY_LAST_IMMEDIATE_SCHEDULE_AT, now).apply()
+            val jobScheduler = getJobScheduler(context)
             val builder = JobInfo.Builder(
                 IMMEDIATE_JOB_ID,
                 ComponentName(context, NotifyJobService::class.java)
@@ -179,7 +198,10 @@ class NotifyJobService : JobService() {
         }
 
         fun schedulePeriodic(context: Context) {
-            val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            if (hasPendingJob(context, JobServiceUtil.getJobId(context))) {
+                return
+            }
+            val jobScheduler = getJobScheduler(context)
             val builder = JobInfo.Builder(
                 JobServiceUtil.getJobId(context),
                 ComponentName(context, NotifyJobService::class.java)

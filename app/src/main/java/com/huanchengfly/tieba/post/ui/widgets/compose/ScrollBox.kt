@@ -1,6 +1,5 @@
 package com.huanchengfly.tieba.post.ui.widgets.compose
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -20,8 +19,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
-
-private const val TAG = "UniversalScrollBox"
 
 private fun TwoFloats(width: Float, height: Float) = androidx.compose.ui.geometry.Size(width = width, height = height)
 
@@ -56,7 +53,6 @@ fun UniversalScrollBox(
             content = content
         ) { measurables, constraints -> // 外层 modifier 使用 unbounded false，可以通过 constraints.maxWidth maxHeight 算出外层的最大大小，注意这个 Size 是 padding 之后的
             outerSize = IntSize(width = constraints.maxWidth, height = constraints.maxHeight)
-            Log.d(TAG, "outerSize $outerSize")
             val placeables = measurables.map { measurable ->
                 // 实际计算 子 Node 的时候，使用 maxWidth = Int.MAX_VALUE，可以得到 子 Node 的真实宽度
                 measurable.measure(
@@ -78,10 +74,6 @@ fun UniversalScrollBox(
             barSize = TwoFloats(
                 width = if (needWidth) (outerSize.width * outerSize.width).toFloat() / innerSize.width else 0F,
                 height = if (needHeight) (outerSize.height * outerSize.height).toFloat() / innerSize.height else 0F
-            )
-            Log.d(
-                TAG,
-                "bar(width: ${barSize.width}, height ${barSize.height}) ratio(width: ${sizeRatio.width}, height ${sizeRatio.height})"
             )
             layout(width = outerSize.width, height = outerSize.height) {
                 placeables.forEach {

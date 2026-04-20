@@ -60,7 +60,8 @@ fun CheckBoxPref(
             } catch (e: Exception) {
                 Log.e(
                     "CheckBoxPref",
-                    "Could not write pref $key to database. ${e.printStackTrace()}"
+                    "Could not write pref $key to database.",
+                    e
                 )
             }
         }

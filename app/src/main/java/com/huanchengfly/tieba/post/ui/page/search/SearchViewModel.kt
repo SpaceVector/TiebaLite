@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.withContext
 import org.litepal.LitePal
 import org.litepal.extension.delete
 import org.litepal.extension.deleteAll
@@ -85,7 +86,7 @@ class SearchViewModel :
             )
         }.catch {
             emit(SearchPartialChange.Init.Failure(it.getErrorCode(), it.getErrorMessage()))
-        }
+        }.flowOn(Dispatchers.IO)
 
         private fun produceClearHistoryPartialChange() =
             flow<SearchPartialChange.ClearSearchHistory> {
@@ -104,15 +105,17 @@ class SearchViewModel :
             }.flowOn(Dispatchers.IO)
 
         private fun SearchUiIntent.SubmitKeyword.producePartialChange() =
-            flowOf(keyword.trim())
-                .onEach {
-                    if (it.isNotBlank()) {
+            flow {
+                val trimmedKeyword = keyword.trim()
+                emit(SearchPartialChange.SubmitKeyword(trimmedKeyword))
+                if (trimmedKeyword.isNotBlank()) {
+                    withContext(Dispatchers.IO) {
                         runCatching {
-                            SearchHistory(it).saveOrUpdate("content = ?", it)
+                            SearchHistory(trimmedKeyword).saveOrUpdate("content = ?", trimmedKeyword)
                         }
                     }
                 }
-                .map { SearchPartialChange.SubmitKeyword(it) }
+            }
 
         private fun SearchUiIntent.KeywordInputChanged.producePartialChange() =
             if (keyword.isNotBlank()) {

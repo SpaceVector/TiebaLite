@@ -233,6 +233,7 @@ fun NetworkImage(
     contentScale: ContentScale = ContentScale.Fit,
     skipNetworkCheck: Boolean = false,
     enablePreview: Boolean = false,
+    crossfade: Boolean = false,
 ) {
     val context = LocalContext.current
 
@@ -256,7 +257,9 @@ fun NetworkImage(
     val request = remember(imageUri, shouldLoad, colorMask) {
         DisplayRequest(context, imageUri) {
             placeholder(ImageUtil.getPlaceHolder(context, 0))
-            crossfade()
+            if (crossfade) {
+                crossfade()
+            }
             if (!shouldLoad) {
                 depth(Depth.LOCAL)
             }
@@ -266,10 +269,10 @@ fun NetworkImage(
         }
     }
 
-    val state = rememberAsyncImageState()
+    val state = if (enablePreview) rememberAsyncImageState() else null
     val imageAspectRatio by remember {
         derivedStateOf {
-            with(state.result) {
+            with(state?.result) {
                 if (this is DisplayResult.Success) imageInfo.height.toFloat() / imageInfo.width
                 else 0f
             }
@@ -291,14 +294,22 @@ fun NetworkImage(
 
     val gestureModifier =
         if (enableClick) {
-            Modifier.pointerInput(enableClick) {
+            Modifier.pointerInput(enableClick, enablePreview) {
                 detectTapGestures(
-                    onLongPress = {
-                        isLongPressing = true
+                    onLongPress = if (enablePreview) {
+                        {
+                            isLongPressing = true
+                        }
+                    } else {
+                        null
                     },
-                    onPress = {
-                        tryAwaitRelease()
-                        isLongPressing = false
+                    onPress = if (enablePreview) {
+                        {
+                            tryAwaitRelease()
+                            isLongPressing = false
+                        }
+                    } else {
+                        { _ -> }
                     },
                     onTap = {
                         if (!shouldLoad) {
@@ -339,15 +350,26 @@ fun NetworkImage(
             .then(gestureModifier)
             .then(modifier)
     ) {
-        AsyncImage(
-            request = request,
-            modifier = Modifier
-                .fillMaxSize()
-                .then(previewTrackingModifier),
-            contentDescription = contentDescription,
-            contentScale = contentScale,
-            state = state,
-        )
+        if (state != null) {
+            AsyncImage(
+                request = request,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(previewTrackingModifier),
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                state = state,
+            )
+        } else {
+            AsyncImage(
+                request = request,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(previewTrackingModifier),
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+            )
+        }
     }
 }
 
@@ -361,6 +383,7 @@ fun NetworkImage(
     contentScale: ContentScale = ContentScale.Fit,
     skipNetworkCheck: Boolean = false,
     enablePreview: Boolean = false,
+    crossfade: Boolean = false,
 ) {
     val imageUri by rememberUpdatedState(newValue = imageUriProvider())
     val previewOriginUrl by rememberUpdatedState(newValue = previewOriginUrlProvider?.invoke())
@@ -373,7 +396,8 @@ fun NetworkImage(
         previewOriginUrl = previewOriginUrl,
         contentScale = contentScale,
         skipNetworkCheck = skipNetworkCheck,
-        enablePreview = enablePreview
+        enablePreview = enablePreview,
+        crossfade = crossfade
     )
 }
 
@@ -386,6 +410,7 @@ fun NetworkImage(
     contentScale: ContentScale = ContentScale.Fit,
     skipNetworkCheck: Boolean = false,
     enablePreview: Boolean = false,
+    crossfade: Boolean = false,
 ) {
     NetworkImage(
         imageUriProvider = imageUriProvider,
@@ -395,6 +420,7 @@ fun NetworkImage(
         previewOriginUrlProvider = null,
         contentScale = contentScale,
         skipNetworkCheck = skipNetworkCheck,
-        enablePreview = enablePreview
+        enablePreview = enablePreview,
+        crossfade = crossfade
     )
 }

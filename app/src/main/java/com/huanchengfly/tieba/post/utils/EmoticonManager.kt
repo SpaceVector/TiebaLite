@@ -37,6 +37,7 @@ import com.huanchengfly.tieba.post.pxToSp
 import com.huanchengfly.tieba.post.toJson
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -124,7 +125,7 @@ object EmoticonManager {
     private val emoticonIds: MutableList<String> = mutableListOf()
     private val emoticonMapping: MutableMap<String, String> = mutableMapOf()
     private val drawableCache: MutableMap<String, Drawable> = mutableMapOf()
-    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO)
+    private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun getEmoticonInlineContent(
         sizePx: Float

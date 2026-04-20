@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,6 +29,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.huanchengfly.tieba.post.ui.widgets.compose.video.util.getDurationString
 import kotlinx.coroutines.Job
@@ -49,6 +51,7 @@ fun MediaControlGestures(
     val controlsVisible by controller.collect { controlsVisible }
     val quickSeekDirection by controller.collect { quickSeekAction.direction }
     val draggingProgress by controller.collect { draggingProgress }
+    val isLongPressSpeeding by controller.collect { isLongPressSpeeding }
 
     if (controlsEnabled && !controlsVisible && gesturesEnabled) {
         Box(
@@ -58,6 +61,21 @@ fun MediaControlGestures(
                     controller.setQuickSeekAction(QuickSeekAction.none())
                 }) {
             GestureBox()
+            if (isLongPressSpeeding) {
+                Text(
+                    text = "2x",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    style = TextStyle(
+                        shadow = Shadow(
+                            blurRadius = 8f,
+                        )
+                    ),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                )
+            }
         }
     }
 
@@ -102,6 +120,12 @@ fun GestureBox(modifier: Modifier = Modifier) {
                 },
                 onTap = {
                     controller.showControls()
+                },
+                onLongPress = {
+                    controller.startLongPressSpeedPlay()
+                },
+                onPressEnd = {
+                    controller.stopLongPressSpeedPlay()
                 },
                 onDragStart = { offset ->
                     wasPlaying = controller.currentState { it.isPlaying }
@@ -158,6 +182,8 @@ fun GestureBox(modifier: Modifier = Modifier) {
 suspend fun PointerInputScope.detectMediaPlayerGesture(
     onTap: (Offset) -> Unit,
     onDoubleTap: (Offset) -> Unit,
+    onLongPress: (Offset) -> Unit,
+    onPressEnd: () -> Unit,
     onDragStart: (Offset) -> Unit,
     onDragEnd: () -> Unit,
     onDrag: (Float) -> Unit
@@ -191,6 +217,11 @@ suspend fun PointerInputScope.detectMediaPlayerGesture(
 
         launch {
             detectTapGestures(
+                onLongPress = onLongPress,
+                onPress = {
+                    tryAwaitRelease()
+                    onPressEnd()
+                },
                 onTap = onTap,
                 onDoubleTap = onDoubleTap
             )

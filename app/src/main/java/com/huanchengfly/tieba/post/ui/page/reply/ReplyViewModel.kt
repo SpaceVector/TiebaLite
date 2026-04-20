@@ -1,7 +1,6 @@
 package com.huanchengfly.tieba.post.ui.page.reply
 
 import android.net.Uri
-import android.util.Log
 import androidx.compose.runtime.Stable
 import com.huanchengfly.tieba.post.App
 import com.huanchengfly.tieba.post.R
@@ -122,7 +121,6 @@ class ReplyViewModel @Inject constructor() :
                 }
                 .onStart { emit(ReplyPartialChange.Send.Start) }
                 .catch {
-                    Log.i("ReplyViewModel", "failure: ${it.message}")
                     it.printStackTrace()
                     emit(ReplyPartialChange.Send.Failure(it.getErrorCode(), it.getErrorMessage()))
                 }

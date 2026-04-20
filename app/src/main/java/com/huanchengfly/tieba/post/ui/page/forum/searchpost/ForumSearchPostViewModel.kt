@@ -95,7 +95,7 @@ class ForumSearchPostViewModel @Inject constructor() :
                 emit(ForumSearchPostPartialChange.Init.Success(searchHistories))
             }.catch {
                 emit(ForumSearchPostPartialChange.Init.Failure(it))
-            }
+            }.flowOn(Dispatchers.IO)
 
         @OptIn(ExperimentalCoroutinesApi::class)
         private fun ForumSearchPostUiIntent.Refresh.producePartialChange(): Flow<ForumSearchPostPartialChange.Refresh> =
@@ -156,7 +156,7 @@ class ForumSearchPostViewModel @Inject constructor() :
                 emit(ForumSearchPostPartialChange.DeleteHistory.Success(id))
             }.catch {
                 emit(ForumSearchPostPartialChange.DeleteHistory.Failure(it))
-            }
+            }.flowOn(Dispatchers.IO)
 
         private fun produceClearHistoryPartialChange(): Flow<ForumSearchPostPartialChange.ClearHistory> =
             flow<ForumSearchPostPartialChange.ClearHistory> {
@@ -164,7 +164,7 @@ class ForumSearchPostViewModel @Inject constructor() :
                 emit(ForumSearchPostPartialChange.ClearHistory.Success)
             }.catch {
                 emit(ForumSearchPostPartialChange.ClearHistory.Failure(it))
-            }
+            }.flowOn(Dispatchers.IO)
     }
 }
 

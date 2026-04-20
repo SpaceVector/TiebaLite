@@ -24,17 +24,12 @@ import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlin.reflect.KProperty1
 
@@ -62,7 +57,6 @@ inline fun <reified T : UiState, A> Flow<T>.collectPartialAsState(
                 prop1.get(it)
             }
             .distinctUntilChanged()
-            .flowOn(Dispatchers.IO)
             .collect {
                 value = it
             }
@@ -80,11 +74,8 @@ inline fun <reified Event : UiEvent> Flow<UiEvent>.onEvent(
                 this@onEvent
                     .filterIsInstance<Event>()
                     .cancellable()
-                    .flowOn(Dispatchers.IO)
                     .collect {
-                        launch {
-                            listener(it)
-                        }
+                        listener(it)
                     }
             }
 
@@ -105,11 +96,8 @@ inline fun <reified Event : UiEvent> BaseViewModel<*, *, *, *>.onEvent(
             uiEventFlow
                 .filterIsInstance<Event>()
                 .cancellable()
-                .flowOn(Dispatchers.IO)
                 .collect {
-                    coroutineScope.launch {
-                        listener(it)
-                    }
+                    listener(it)
                 }
         }
 
@@ -158,13 +146,11 @@ inline fun <reified VM : BaseViewModel<*, *, *, *>> pageViewModel(
                         uiEventFlow
                             .filterIsInstance<CommonUiEvent>()
                             .cancellable()
-                            .flowOn(Dispatchers.IO)
                             .collectIn(context) {
                                 context.handleCommonEvent(it)
                             }
 
                     onDispose {
-                        Log.i("pageViewModel", "onDispose")
                         job.cancel()
                     }
                 }
@@ -183,10 +169,7 @@ inline fun <INTENT : UiIntent, reified VM : BaseViewModel<INTENT, *, *, *>> page
             LaunchedEffect(key1 = initialized) {
                 if (!initialized) {
                     initialized = true
-                    initialIntent.asFlow()
-                        .onEach(this@apply::send)
-                        .flowOn(Dispatchers.IO)
-                        .launchIn(viewModelScope)
+                    initialIntent.forEach(this@apply::send)
                 }
             }
         }

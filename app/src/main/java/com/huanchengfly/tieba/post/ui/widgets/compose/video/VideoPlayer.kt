@@ -1,6 +1,4 @@
 package com.huanchengfly.tieba.post.ui.widgets.compose.video
-
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -119,16 +117,17 @@ fun VideoPlayer(
         LocalContentColor provides Color.White,
         LocalVideoPlayerController provides videoPlayerController
     ) {
-        val startedPlay by videoPlayerController.collect { startedPlay || playbackState != PlaybackState.IDLE }
-        val aspectRatio by videoPlayerController.collect { videoSize.first / videoSize.second }
+        val videoPlayerUiState by videoPlayerController.collect()
+        val startedPlay =
+            videoPlayerUiState.startedPlay || videoPlayerUiState.playbackState != PlaybackState.IDLE
+        val aspectRatio = videoPlayerUiState.videoSize.first / videoPlayerUiState.videoSize.second
         val supportFullScreen =
             remember(videoPlayerController) { videoPlayerController.supportFullScreen() }
 
         if (supportFullScreen) {
-            val isFullScreen by videoPlayerController.collect { isFullScreen }
+            val isFullScreen = videoPlayerUiState.isFullScreen
 
             BackHandler(enabled = isFullScreen) {
-                Log.i("VideoPlayer", "handleBackPress")
                 videoPlayerController.toggleFullScreen()
             }
         }
@@ -154,7 +153,7 @@ fun VideoPlayer(
 
                 MediaController()
             } else {
-                val thumbnailUrl by videoPlayerController.collect { thumbnailUrl }
+                val thumbnailUrl = videoPlayerUiState.thumbnailUrl
 
                 Box(
                     modifier = Modifier
@@ -187,13 +186,14 @@ fun VideoPlayer(
 @Composable
 fun BoxScope.MediaController() {
     val videoPlayerController = LocalVideoPlayerController.current
+    val videoPlayerUiState by videoPlayerController.collect()
 
     MediaControlButtons(
         modifier = Modifier.matchParentSize()
     )
 
-    val controlsVisible by videoPlayerController.collect { controlsVisible }
-    val isFullScreen by videoPlayerController.collect { isFullScreen }
+    val controlsVisible = videoPlayerUiState.controlsVisible
+    val isFullScreen = videoPlayerUiState.isFullScreen
 
     if (controlsVisible) {
         Column(
@@ -220,7 +220,7 @@ fun BoxScope.MediaController() {
             }
         }
     }
-    if (!isFullScreen || !controlsVisible) {
+    if (controlsVisible && !isFullScreen) {
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)

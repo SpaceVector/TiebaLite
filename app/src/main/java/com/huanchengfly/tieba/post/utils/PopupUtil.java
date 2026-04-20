@@ -2,7 +2,6 @@ package com.huanchengfly.tieba.post.utils;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.util.Log;
 import android.view.View;
 
 import androidx.appcompat.content.res.AppCompatResources;
@@ -65,7 +64,6 @@ public class PopupUtil {
             Field popupField = obj.getClass().getDeclaredField("mPopup");
             popupField.setAccessible(true);
             MenuPopupWindow menuPopupWindow = (MenuPopupWindow) popupField.get(obj);
-            Log.i("Theme", ThemeUtil.INSTANCE.getCurrentTheme());
             if (ThemeUtil.INSTANCE.getCurrentTheme().equals(ThemeUtil.THEME_TRANSLUCENT_LIGHT)) {
                 menuPopupWindow.setBackgroundDrawable(
                         ThemeUtils.tintDrawable(context.getDrawable(R.drawable.bg_popup),

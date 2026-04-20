@@ -35,7 +35,6 @@ object FileUtil {
                 }
             } else {
                 if (f.exists()) { // 判断是否存在
-                    deleteAllFiles(f)
                     try {
                         f.delete()
                     } catch (e: Exception) {
@@ -52,7 +51,8 @@ object FileUtil {
      */
     fun getFilePath(context: Context, dir: String): String {
         val directoryPath = if (Environment.MEDIA_MOUNTED == Environment.getExternalStorageState()) {
-            context.getExternalFilesDir(dir)!!.absolutePath
+            context.getExternalFilesDir(dir)?.absolutePath
+                ?: (context.filesDir.toString() + File.separator + dir)
         } else {
             context.filesDir.toString() + File.separator + dir
         }
@@ -156,11 +156,7 @@ object FileUtil {
             return null
         }
         try {
-            val `is`: InputStream = FileInputStream(file)
-            val length = `is`.available()
-            val buffer = ByteArray(length)
-            `is`.read(buffer)
-            return String(buffer, StandardCharsets.UTF_8)
+            return file.inputStream().bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
         } catch (e: IOException) {
             e.printStackTrace()
         }
@@ -173,10 +169,10 @@ object FileUtil {
             return false
         }
         try {
-            val fos = FileOutputStream(file, append)
-            fos.write(content.toByteArray())
-            fos.flush()
-            fos.close()
+            FileOutputStream(file, append).use { fos ->
+                fos.write(content.toByteArray(StandardCharsets.UTF_8))
+                fos.flush()
+            }
             return true
         } catch (e: IOException) {
             e.printStackTrace()
@@ -189,15 +185,16 @@ object FileUtil {
             return false
         }
         try {
-            val fos = FileOutputStream(file)
-            val buffer = ByteArray(1024)
-            var byteCount: Int
-            while (inputStream.read(buffer).also { byteCount = it } != -1) {
-                fos.write(buffer, 0, byteCount)
+            inputStream.use { input ->
+                FileOutputStream(file).use { fos ->
+                    val buffer = ByteArray(1024)
+                    var byteCount: Int
+                    while (input.read(buffer).also { byteCount = it } != -1) {
+                        fos.write(buffer, 0, byteCount)
+                    }
+                    fos.flush()
+                }
             }
-            fos.flush()
-            fos.close()
-            inputStream.close()
             return true
         } catch (e: IOException) {
             e.printStackTrace()

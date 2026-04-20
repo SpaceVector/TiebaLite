@@ -4,10 +4,8 @@ import com.huanchengfly.tieba.post.api.TiebaApi
 import com.huanchengfly.tieba.post.api.models.protos.addPost.AddPostResponse
 import com.huanchengfly.tieba.post.arch.GlobalEvent
 import com.huanchengfly.tieba.post.arch.emitGlobalEvent
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onEach
-import kotlinx.coroutines.launch
 
 object AddPostRepository {
     fun addPost(
@@ -35,20 +33,18 @@ object AddPostRepository {
             )
             .onEach {
                 val newPostId = checkNotNull(it.data_?.pid?.toLongOrNull())
-                GlobalScope.launch {
-                    if (postId != null) {
-                        emitGlobalEvent(
-                            GlobalEvent.ReplySuccess(
-                                threadId,
-                                postId,
-                                postId,
-                                subPostId,
-                                newPostId
-                            )
+                if (postId != null) {
+                    emitGlobalEvent(
+                        GlobalEvent.ReplySuccess(
+                            threadId,
+                            postId,
+                            postId,
+                            subPostId,
+                            newPostId
                         )
-                    } else {
-                        emitGlobalEvent(GlobalEvent.ReplySuccess(threadId, newPostId))
-                    }
+                    )
+                } else {
+                    emitGlobalEvent(GlobalEvent.ReplySuccess(threadId, newPostId))
                 }
             }
 }

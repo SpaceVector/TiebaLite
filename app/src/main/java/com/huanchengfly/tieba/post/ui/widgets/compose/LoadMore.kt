@@ -19,14 +19,12 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -44,18 +42,13 @@ import androidx.compose.ui.unit.dp
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.common.theme.compose.loadMoreIndicator
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.sample
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val LoadDistance = 70.dp
 
-@OptIn(ExperimentalMaterialApi::class, FlowPreview::class)
+@OptIn(ExperimentalMaterialApi::class)
 @Composable
 fun LoadMoreLayout(
     isLoading: Boolean,
@@ -81,25 +74,15 @@ fun LoadMoreLayout(
     val curOnLoadMore by rememberUpdatedState(newValue = onLoadMore)
     var lastTriggerTime by remember { mutableLongStateOf(0L) }
     var waitingStateReset by remember { mutableStateOf(false) }
-    val loadMoreFlow = remember {
-        MutableSharedFlow<Long>(
-            extraBufferCapacity = 1,
-            onBufferOverflow = BufferOverflow.DROP_LATEST
-        )
-    }
-    val coroutineScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        val job = coroutineScope.launch {
-            loadMoreFlow
-                .sample(150)
-                .collect {
-                    curOnLoadMore()
-                    waitingStateReset = true
-                    lastTriggerTime = it
-                }
+    fun tryTriggerLoadMore(): Boolean {
+        val curTime = System.currentTimeMillis()
+        if (curTime - lastTriggerTime < 150) {
+            return false
         }
-
-        onDispose { job.cancel() }
+        curOnLoadMore()
+        waitingStateReset = true
+        lastTriggerTime = curTime
+        return true
     }
 
     val canLoadMore = remember(enableLoadMore, loadEnd) { enableLoadMore && !loadEnd }
@@ -125,11 +108,7 @@ fun LoadMoreLayout(
                 .distinctUntilChanged()
                 .collect {
                     if (it) {
-                        val curTime = System.currentTimeMillis()
-                        coroutineScope.launch {
-                            loadMoreFlow.emit(curTime)
-                        }
-                        curTime - lastTriggerTime >= 500
+                        tryTriggerLoadMore()
                     }
                 }
         }
@@ -137,11 +116,7 @@ fun LoadMoreLayout(
 
     val swipeableState = rememberSwipeableState(false) { newValue ->
         if (newValue && !curIsLoading && curCanLoadMore) {
-            val curTime = System.currentTimeMillis()
-            coroutineScope.launch {
-                loadMoreFlow.emit(curTime)
-            }
-            curTime - lastTriggerTime >= 500
+            tryTriggerLoadMore()
         } else !newValue
     }
 

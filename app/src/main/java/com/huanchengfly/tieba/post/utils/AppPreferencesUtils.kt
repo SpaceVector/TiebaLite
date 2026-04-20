@@ -19,8 +19,7 @@ import com.huanchengfly.tieba.post.utils.ThemeUtil.TRANSLUCENT_THEME_LIGHT
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import kotlin.properties.ReadWriteProperty
@@ -32,13 +31,13 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
         private var instance: AppPreferencesUtils? = null
 
         fun getInstance(context: Context): AppPreferencesUtils {
-            return instance ?: AppPreferencesUtils(context).also {
+            return instance ?: AppPreferencesUtils(context.applicationContext).also {
                 instance = it
             }
         }
     }
 
-    private val contextWeakReference: WeakReference<Context> = WeakReference(ctx)
+    private val contextWeakReference: WeakReference<Context> = WeakReference(ctx.applicationContext)
 
     private val context: Context
         get() = contextWeakReference.get()!!
@@ -47,6 +46,16 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
         get() = context.dataStore
 
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    @Volatile
+    private var latestPreferences: Preferences? = null
+
+    init {
+        coroutineScope.launch {
+            preferencesDataStore.data.collect {
+                latestPreferences = it
+            }
+        }
+    }
 
     var userLikeLastRequestUnix by DataStoreDelegates.long(defaultValue = 0L)
 
@@ -226,17 +235,13 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
 
             override fun getValue(thisRef: AppPreferencesUtils, property: KProperty<*>): Int {
                 val finalKey = key ?: property.name
-                if (!initialized) {
+                val currentPreferences = thisRef.latestPreferences
+                if (currentPreferences != null) {
+                    prefValue = currentPreferences[intPreferencesKey(finalKey)] ?: defaultValue
+                    initialized = true
+                } else if (!initialized) {
                     initialized = true
                     prefValue = thisRef.preferencesDataStore.getInt(finalKey, defaultValue)
-                    thisRef.coroutineScope.launch {
-                        thisRef.preferencesDataStore.data
-                            .map { it[intPreferencesKey(finalKey)] }
-                            .distinctUntilChanged()
-                            .collect {
-                                prefValue = it ?: defaultValue
-                            }
-                    }
                 }
                 return prefValue
             }
@@ -264,18 +269,14 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
 
             override fun getValue(thisRef: AppPreferencesUtils, property: KProperty<*>): String? {
                 val finalKey = key ?: property.name
-                if (!initialized) {
+                val currentPreferences = thisRef.latestPreferences
+                if (currentPreferences != null) {
+                    prefValue = currentPreferences[stringPreferencesKey(finalKey)] ?: defaultValue
+                    initialized = true
+                } else if (!initialized) {
                     initialized = true
                     prefValue = thisRef.preferencesDataStore.getString(finalKey)
                         ?: defaultValue
-                    thisRef.coroutineScope.launch {
-                        thisRef.preferencesDataStore.data
-                            .map { it[stringPreferencesKey(finalKey)] }
-                            .distinctUntilChanged()
-                            .collect {
-                                prefValue = it ?: defaultValue
-                            }
-                    }
                 }
                 return prefValue
             }
@@ -307,18 +308,14 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
 
             override fun getValue(thisRef: AppPreferencesUtils, property: KProperty<*>): Float {
                 val finalKey = key ?: property.name
-                if (!initialized) {
+                val currentPreferences = thisRef.latestPreferences
+                if (currentPreferences != null) {
+                    prefValue = currentPreferences[floatPreferencesKey(finalKey)] ?: defaultValue
+                    initialized = true
+                } else if (!initialized) {
                     initialized = true
                     prefValue =
                         thisRef.preferencesDataStore.getFloat(finalKey, defaultValue)
-                    thisRef.coroutineScope.launch {
-                        thisRef.preferencesDataStore.data
-                            .map { it[floatPreferencesKey(finalKey)] }
-                            .distinctUntilChanged()
-                            .collect {
-                                prefValue = it ?: defaultValue
-                            }
-                    }
                 }
                 return prefValue
             }
@@ -346,18 +343,14 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
 
             override fun getValue(thisRef: AppPreferencesUtils, property: KProperty<*>): Long {
                 val finalKey = key ?: property.name
-                if (!initialized) {
+                val currentPreferences = thisRef.latestPreferences
+                if (currentPreferences != null) {
+                    prefValue = currentPreferences[longPreferencesKey(finalKey)] ?: defaultValue
+                    initialized = true
+                } else if (!initialized) {
                     initialized = true
                     prefValue =
                         thisRef.preferencesDataStore.getLong(finalKey, defaultValue)
-                    thisRef.coroutineScope.launch {
-                        thisRef.preferencesDataStore.data
-                            .map { it[longPreferencesKey(finalKey)] }
-                            .distinctUntilChanged()
-                            .collect {
-                                prefValue = it ?: defaultValue
-                            }
-                    }
                 }
                 return prefValue
             }
@@ -385,18 +378,14 @@ open class AppPreferencesUtils private constructor(ctx: Context) {
 
             override fun getValue(thisRef: AppPreferencesUtils, property: KProperty<*>): Boolean {
                 val finalKey = key ?: property.name
-                if (!initialized) {
+                val currentPreferences = thisRef.latestPreferences
+                if (currentPreferences != null) {
+                    prefValue = currentPreferences[booleanPreferencesKey(finalKey)] ?: defaultValue
+                    initialized = true
+                } else if (!initialized) {
                     initialized = true
                     prefValue =
                         thisRef.preferencesDataStore.getBoolean(finalKey, defaultValue)
-                    thisRef.coroutineScope.launch {
-                        thisRef.preferencesDataStore.data
-                            .map { it[booleanPreferencesKey(finalKey)] }
-                            .distinctUntilChanged()
-                            .collect {
-                                prefValue = it ?: defaultValue
-                            }
-                    }
                 }
                 return prefValue
             }

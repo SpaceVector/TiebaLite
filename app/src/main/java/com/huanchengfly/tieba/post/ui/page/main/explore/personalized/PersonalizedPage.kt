@@ -288,6 +288,7 @@ private fun FeedList(
     val data = dataProvider()
     val refreshPosition = refreshPositionProvider()
     val hiddenThreadIds = hiddenThreadIdsProvider()
+    val hiddenThreadIdSet = remember(hiddenThreadIds) { hiddenThreadIds.toHashSet() }
 
     MyLazyColumn(
         state = state,
@@ -308,10 +309,10 @@ private fun FeedList(
         ) { index, (item, blocked, personalized, hidden) ->
             val isHidden =
                 remember(
-                    hiddenThreadIds,
+                    hiddenThreadIdSet,
                     item,
                     hidden
-                ) { hiddenThreadIds.contains(item.get { threadId }) || hidden }
+                ) { hiddenThreadIdSet.contains(item.get { threadId }) || hidden }
             val isRefreshPosition =
                 remember(index, refreshPosition) { index + 1 == refreshPosition }
             val isNotLast = remember(index, data.size) { index < data.size - 1 }

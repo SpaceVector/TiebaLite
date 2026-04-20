@@ -2,7 +2,6 @@
 
 package com.huanchengfly.tieba.post.api.retrofit.converter.kotlinx.serialization
 
-import android.util.Log
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.StringFormat
 import okhttp3.ResponseBody
@@ -23,10 +22,7 @@ internal class Factory(
             retrofit.nextResponseBodyConverter<Any>(this, type, annotations)
         val loader = runCatching { serializer.serializer(type) }.getOrNull()
         return Converter { body: ResponseBody ->
-            loader?.let { serializer.fromResponseBody(it, body) } ?: run {
-                Log.d("Serializer", "Failed to deserialize, falling back to delegate.")
-                delegate.convert(body)
-            }
+            loader?.let { serializer.fromResponseBody(it, body) } ?: delegate.convert(body)
         }
     }
 }

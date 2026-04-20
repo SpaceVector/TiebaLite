@@ -2,15 +2,13 @@ package com.huanchengfly.tieba.post.utils;
 
 import android.content.Context;
 import android.os.Handler;
-import android.util.Log;
+import android.os.Looper;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.widget.Toast;
 
 public class TiebaLiteJavaScript {
-    public static final String TAG = "JsBridge";
-
-    private static final Handler handler = new Handler();
+    private static final Handler handler = new Handler(Looper.getMainLooper());
     public Context context;
     public WebView webView;
 
@@ -47,7 +45,6 @@ public class TiebaLiteJavaScript {
                 .edit()
                 .putString(key, value)
                 .apply();
-        Log.i(TAG, "putString: " + key + ": " + value);
     }
 
     @JavascriptInterface
@@ -68,6 +65,5 @@ public class TiebaLiteJavaScript {
                 .edit()
                 .putInt(key, value)
                 .apply();
-        Log.i(TAG, "putInt: " + key + ": " + value);
     }
 }

@@ -43,6 +43,7 @@ import com.huanchengfly.tieba.post.utils.ThemeUtil.isNightMode
 import com.zhihu.matisse.MimeType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -79,6 +80,8 @@ object ImageUtil {
     const val LOAD_TYPE_NO_RADIUS = 2
     const val LOAD_TYPE_ALWAYS_ROUND = 3
     const val TAG = "ImageUtil"
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private fun isGifFile(file: File?): Boolean {
         if (file == null) return false
         try {
@@ -119,25 +122,22 @@ object ImageUtil {
         maxSizeKb: Int = 100,
         initialQuality: Int = 100
     ): File {
-        val baos = ByteArrayOutputStream()
-        var quality = initialQuality
-        bitmap.compress(CompressFormat.JPEG, quality, baos) //质量压缩方法，这里100表示不压缩，把压缩后的数据存放到baos中
-        while (baos.toByteArray().size / 1024 > maxSizeKb && quality > 0) {  //循环判断如果压缩后图片是否大于设置的最大值,大于继续压缩
-            baos.reset() //重置baos即清空baos
-            quality -= 5 //每次都减少5
-            bitmap.compress(CompressFormat.JPEG, quality, baos) //这里压缩options%，把压缩后的数据存放到baos中
-        }
-        try {
-            val fos = FileOutputStream(output)
+        ByteArrayOutputStream().use { baos ->
+            var quality = initialQuality
+            bitmap.compress(CompressFormat.JPEG, quality, baos)
+            while (baos.toByteArray().size / 1024 > maxSizeKb && quality > 0) {
+                baos.reset()
+                quality -= 5
+                bitmap.compress(CompressFormat.JPEG, quality, baos)
+            }
             try {
-                fos.write(baos.toByteArray())
-                fos.flush()
-                fos.close()
+                FileOutputStream(output).use { fos ->
+                    fos.write(baos.toByteArray())
+                    fos.flush()
+                }
             } catch (e: IOException) {
                 e.printStackTrace()
             }
-        } catch (e: FileNotFoundException) {
-            e.printStackTrace()
         }
         return output
     }
@@ -148,19 +148,16 @@ object ImageUtil {
         output: File,
         format: CompressFormat = CompressFormat.JPEG
     ): File {
-        val baos = ByteArrayOutputStream()
-        bitmap.compress(format, 100, baos)
-        try {
-            val fos = FileOutputStream(output)
+        ByteArrayOutputStream().use { baos ->
+            bitmap.compress(format, 100, baos)
             try {
-                fos.write(baos.toByteArray())
-                fos.flush()
-                fos.close()
+                FileOutputStream(output).use { fos ->
+                    fos.write(baos.toByteArray())
+                    fos.flush()
+                }
             } catch (e: IOException) {
                 e.printStackTrace()
             }
-        } catch (e: FileNotFoundException) {
-            e.printStackTrace()
         }
         return output
     }
@@ -180,21 +177,19 @@ object ImageUtil {
         if (src == null || dest == null) {
             return false
         }
-        val srcChannel: FileChannel?
-        val dstChannel: FileChannel?
         try {
-            srcChannel = src.channel
-            dstChannel = dest.channel
-            srcChannel.transferTo(0, srcChannel.size(), dstChannel)
+            src.use { source ->
+                dest.use { destination ->
+                    source.channel.use { srcChannel ->
+                        destination.channel.use { dstChannel ->
+                            srcChannel.transferTo(0, srcChannel.size(), dstChannel)
+                        }
+                    }
+                }
+            }
         } catch (e: IOException) {
             e.printStackTrace()
             return false
-        }
-        try {
-            srcChannel.close()
-            dstChannel.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
         return true
     }
@@ -206,26 +201,20 @@ object ImageUtil {
         if (dest.exists()) {
             dest.delete()
         }
+        dest.parentFile?.takeUnless { it.exists() }?.mkdirs()
         try {
-            dest.createNewFile()
-        } catch (e: IOException) {
-            e.printStackTrace()
-        }
-        val srcChannel: FileChannel?
-        val dstChannel: FileChannel?
-        try {
-            srcChannel = FileInputStream(src).channel
-            dstChannel = FileOutputStream(dest).channel
-            srcChannel.transferTo(0, srcChannel.size(), dstChannel)
+            FileInputStream(src).use { input ->
+                FileOutputStream(dest).use { output ->
+                    input.channel.use { srcChannel ->
+                        output.channel.use { dstChannel ->
+                            srcChannel.transferTo(0, srcChannel.size(), dstChannel)
+                        }
+                    }
+                }
+            }
         } catch (e: IOException) {
             e.printStackTrace()
             return false
-        }
-        try {
-            srcChannel.close()
-            dstChannel.close()
-        } catch (e: IOException) {
-            e.printStackTrace()
         }
         return true
     }
@@ -248,7 +237,7 @@ object ImageUtil {
 
     private fun downloadForShare(context: Context, url: String?, taskCallback: ShareTaskCallback) {
         if (url == null) return
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val downloadResult = DownloadRequest(context, url).execute()
             if (downloadResult is DownloadResult.Success) {
                 val inputStream = downloadResult.data.data.newInputStream()
@@ -256,16 +245,9 @@ object ImageUtil {
                 if (pictureFolder.exists() || pictureFolder.mkdirs()) {
                     val fileName = "share_" + System.currentTimeMillis()
                     val destFile = File(pictureFolder, fileName)
-                    if (!destFile.exists()) {
-                        withContext(Dispatchers.IO) {
-                            destFile.createNewFile()
-                        }
-                    }
                     inputStream.use { input ->
-                        if (destFile.canWrite()) {
-                            destFile.outputStream().use { output ->
-                                input.copyTo(output)
-                            }
+                        destFile.outputStream().use { output ->
+                            input.copyTo(output)
                         }
                     }
                     val shareUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -316,7 +298,7 @@ object ImageUtil {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             return
         }
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val downloadResult = DownloadRequest(context, url).execute()
             if (downloadResult is DownloadResult.Success) {
                 var mimeType = MimeType.JPEG.toString()
@@ -366,7 +348,7 @@ object ImageUtil {
     }
 
     private fun downloadBelowQ(context: Context, url: String?) {
-        CoroutineScope(Dispatchers.IO).launch {
+        ioScope.launch {
             val downloadResult = DownloadRequest(context, url).execute()
             if (downloadResult is DownloadResult.Success) {
                 var fileName = URLUtil.guessFileName(url, null, MimeType.JPEG.toString())
@@ -379,15 +361,9 @@ object ImageUtil {
                     val pictureFolder =
                         Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
                     val appDir = File(pictureFolder, FileUtil.FILE_FOLDER)
-                    val dirExists =
-                        withContext(Dispatchers.IO) { appDir.exists() || appDir.mkdirs() }
+                    val dirExists = appDir.exists() || appDir.mkdirs()
                     if (dirExists) {
                         val destFile = File(appDir, fileName)
-                        if (!destFile.exists()) {
-                            withContext(Dispatchers.IO) {
-                                destFile.createNewFile()
-                            }
-                        }
                         destFile.outputStream().use { outputStream ->
                             inputStream.copyTo(outputStream)
                         }

@@ -16,8 +16,10 @@ import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.preference.PreferenceDataStore
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -27,6 +29,17 @@ import kotlinx.coroutines.runBlocking
 object DataStoreConst {
     const val DATA_STORE_NAME = "app_preferences"
 }
+
+private val dataStoreWriteScope by lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+    CoroutineScope(SupervisorJob() + Dispatchers.IO)
+}
+private val dataStoreReadScope by lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
+    CoroutineScope(SupervisorJob() + Dispatchers.IO)
+}
+@Volatile
+private var latestDataStorePreferences: Preferences? = null
+@Volatile
+private var dataStoreSnapshotStarted = false
 
 private val dataStoreInstance by lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) {
     preferencesDataStore(
@@ -53,6 +66,31 @@ private val dataStoreInstance by lazy(mode = LazyThreadSafetyMode.SYNCHRONIZED) 
 }
 
 val Context.dataStore: DataStore<Preferences> by dataStoreInstance
+
+private fun ensureDataStoreSnapshot() {
+    if (dataStoreSnapshotStarted || !App.isInitialized) {
+        return
+    }
+    synchronized(DataStoreConst::class.java) {
+        if (dataStoreSnapshotStarted || !App.isInitialized) {
+            return
+        }
+        dataStoreSnapshotStarted = true
+        dataStoreReadScope.launch {
+            App.INSTANCE.dataStore.data.collect {
+                latestDataStorePreferences = it
+            }
+        }
+    }
+}
+
+private fun DataStore<Preferences>.currentPreferences(): Preferences {
+    ensureDataStoreSnapshot()
+    latestDataStorePreferences?.let { return it }
+    return runBlocking { data.first() }.also {
+        latestDataStorePreferences = it
+    }
+}
 
 @Composable
 fun <T> rememberPreferenceAsMutableState(
@@ -104,180 +142,126 @@ fun <T> DataStore<Preferences>.collectPreferenceAsState(
 }
 
 fun DataStore<Preferences>.putString(key: String, value: String? = null) {
-    MainScope().launch(Dispatchers.IO) {
+    dataStoreWriteScope.launch {
         edit {
             if (value == null) {
                 it.remove(stringPreferencesKey(key))
             } else {
                 it[stringPreferencesKey(key)] = value
             }
+            latestDataStorePreferences = it.toPreferences()
         }
     }
 }
 
 fun DataStore<Preferences>.putBoolean(key: String, value: Boolean) {
-    MainScope().launch(Dispatchers.IO) {
+    dataStoreWriteScope.launch {
         edit {
             it[booleanPreferencesKey(key)] = value
+            latestDataStorePreferences = it.toPreferences()
         }
     }
 }
 
 fun DataStore<Preferences>.putInt(key: String, value: Int) {
-    MainScope().launch(Dispatchers.IO) {
+    dataStoreWriteScope.launch {
         edit {
             it[intPreferencesKey(key)] = value
+            latestDataStorePreferences = it.toPreferences()
         }
     }
 }
 
 fun DataStore<Preferences>.getInt(key: String, defaultValue: Int): Int {
-    var resultValue = defaultValue
-
-    runBlocking {
-        data.first {
-            resultValue = it[intPreferencesKey(key)] ?: resultValue
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[intPreferencesKey(key)] ?: defaultValue
 }
 
 fun DataStore<Preferences>.getString(key: String): String? {
-    var resultValue: String? = null
-
-    runBlocking {
-        data.first {
-            resultValue = it[stringPreferencesKey(key)]
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[stringPreferencesKey(key)]
 }
 
 fun DataStore<Preferences>.getString(key: String, defaultValue: String): String {
-    var resultValue = defaultValue
-
-    runBlocking {
-        data.first {
-            resultValue = it[stringPreferencesKey(key)] ?: resultValue
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[stringPreferencesKey(key)] ?: defaultValue
 }
 
 fun DataStore<Preferences>.getStringSet(
     key: String,
     defaultValues: MutableSet<String>? = null
 ): MutableSet<String>? {
-    var resultValue = defaultValues
-
-    runBlocking {
-        data.first {
-            resultValue = it[stringSetPreferencesKey(key)]?.toMutableSet() ?: resultValue
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[stringSetPreferencesKey(key)]?.toMutableSet() ?: defaultValues
 }
 
 fun DataStore<Preferences>.getBoolean(key: String, defaultValue: Boolean): Boolean {
-    var resultValue = defaultValue
-
-    runBlocking {
-        data.first {
-            resultValue = it[booleanPreferencesKey(key)] ?: resultValue
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[booleanPreferencesKey(key)] ?: defaultValue
 }
 
 fun DataStore<Preferences>.getFloat(key: String, defaultValue: Float): Float {
-    var resultValue = defaultValue
-
-    runBlocking {
-        data.first {
-            resultValue = it[floatPreferencesKey(key)] ?: resultValue
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[floatPreferencesKey(key)] ?: defaultValue
 }
 
 fun DataStore<Preferences>.getLong(key: String, defaultValue: Long): Long {
-    var resultValue = defaultValue
-
-    runBlocking {
-        data.first {
-            resultValue = it[longPreferencesKey(key)] ?: resultValue
-            true
-        }
-    }
-
-    return resultValue
+    return currentPreferences()[longPreferencesKey(key)] ?: defaultValue
 }
 
 class DataStorePreference : PreferenceDataStore() {
     override fun putString(key: String, value: String?) {
-        MainScope().launch(Dispatchers.IO) {
+        dataStoreWriteScope.launch {
             App.INSTANCE.dataStore.edit {
                 if (value == null) {
                     it.remove(stringPreferencesKey(key))
                 } else {
                     it[stringPreferencesKey(key)] = value
                 }
+                latestDataStorePreferences = it.toPreferences()
             }
         }
     }
 
     override fun putStringSet(key: String, values: MutableSet<String>?) {
-        MainScope().launch(Dispatchers.IO) {
+        dataStoreWriteScope.launch {
             App.INSTANCE.dataStore.edit {
                 if (values == null) {
                     it.remove(stringSetPreferencesKey(key))
                 } else {
                     it[stringSetPreferencesKey(key)] = values
                 }
+                latestDataStorePreferences = it.toPreferences()
             }
         }
     }
 
     override fun putInt(key: String, value: Int) {
-        MainScope().launch(Dispatchers.IO) {
+        dataStoreWriteScope.launch {
             App.INSTANCE.dataStore.edit {
                 it[intPreferencesKey(key)] = value
+                latestDataStorePreferences = it.toPreferences()
             }
         }
     }
 
     override fun putLong(key: String, value: Long) {
-        MainScope().launch(Dispatchers.IO) {
+        dataStoreWriteScope.launch {
             App.INSTANCE.dataStore.edit {
                 it[longPreferencesKey(key)] = value
+                latestDataStorePreferences = it.toPreferences()
             }
         }
     }
 
     override fun putFloat(key: String, value: Float) {
-        MainScope().launch(Dispatchers.IO) {
+        dataStoreWriteScope.launch {
             App.INSTANCE.dataStore.edit {
                 it[floatPreferencesKey(key)] = value
+                latestDataStorePreferences = it.toPreferences()
             }
         }
     }
 
     override fun putBoolean(key: String, value: Boolean) {
-        MainScope().launch(Dispatchers.IO) {
+        dataStoreWriteScope.launch {
             App.INSTANCE.dataStore.edit {
                 it[booleanPreferencesKey(key)] = value
+                latestDataStorePreferences = it.toPreferences()
             }
         }
     }

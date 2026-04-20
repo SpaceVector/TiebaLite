@@ -422,6 +422,7 @@ fun HomePage(
     var listSingle by remember { mutableStateOf(context.appPreferences.listSingle) }
     val isError by remember { derivedStateOf { error != null } }
     val gridCells by remember { derivedStateOf { getGridCells(context, listSingle) } }
+    val shouldRefreshHistoryOnEnter = remember { viewModel.initialized }
 
     onGlobalEvent<GlobalEvent.Refresh>(
         filter = { it.key == "home" }
@@ -447,8 +448,10 @@ fun HomePage(
         )
     }
 
-    LaunchedEffect(Unit) {
-        if (viewModel.initialized) viewModel.send(HomeUiIntent.RefreshHistory)
+    LaunchedEffect(shouldRefreshHistoryOnEnter) {
+        if (shouldRefreshHistoryOnEnter) {
+            viewModel.send(HomeUiIntent.RefreshHistory)
+        }
     }
 
     MyScaffold(
@@ -619,7 +622,8 @@ fun HomePage(
                             }
                             items(
                                 items = topForums,
-                                key = { "Top${it.forumId}" }
+                                key = { "Top${it.forumId}" },
+                                contentType = { if (listSingle) "TopForumList" else "TopForumGrid" }
                             ) { item ->
                                 ForumItem(
                                     item,
@@ -652,7 +656,8 @@ fun HomePage(
                         }
                         items(
                             items = forums,
-                            key = { it.forumId }
+                            key = { it.forumId },
+                            contentType = { if (listSingle) "ForumList" else "ForumGrid" }
                         ) { item ->
                             ForumItem(
                                 item,
@@ -712,7 +717,11 @@ private fun HomePageSkeletonScreen(
                 )
             }
         }
-        items(6, key = { "TopPlaceholder$it" }) {
+        items(
+            6,
+            key = { "TopPlaceholder$it" },
+            contentType = { if (listSingle) "TopPlaceholderList" else "TopPlaceholderGrid" }
+        ) {
             ForumItemPlaceholder(listSingle)
         }
         item(
@@ -737,7 +746,11 @@ private fun HomePageSkeletonScreen(
                 Spacer(modifier = Modifier.height(8.dp))
             }
         }
-        items(12, key = { "Placeholder$it" }) {
+        items(
+            12,
+            key = { "Placeholder$it" },
+            contentType = { if (listSingle) "PlaceholderList" else "PlaceholderGrid" }
+        ) {
             ForumItemPlaceholder(listSingle)
         }
     }

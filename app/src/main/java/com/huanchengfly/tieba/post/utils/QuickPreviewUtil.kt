@@ -135,7 +135,7 @@ object QuickPreviewUtil {
                     icon = Icon(StringUtil.getAvatarUrl(it.data_?.thread?.author?.portrait))
                 )
             }
-            .catch { it.printStackTrace() }
+            .catch { }
             .apply {
                 if (lifeCycle != null) {
                     flowWithLifecycle(lifeCycle)
@@ -189,7 +189,7 @@ object QuickPreviewUtil {
                     icon = Icon(it.data_?.forum?.avatar)
                 )
             }
-            .catch { it.printStackTrace() }
+            .catch { }
             .apply {
                 if (lifeCycle != null) {
                     flowWithLifecycle(lifeCycle)
