@@ -483,7 +483,7 @@ internal fun SubPostsContent(
                     itemsIndexed(
                         items = subPosts,
                         key = { _, subPost -> subPost.id }
-                    ) { index, item ->
+                    ) { _, item ->
                         SubPostItem(
                             item = item,
                             canDelete = { it.author_id == account?.uid?.toLongOrNull() },
@@ -529,6 +529,22 @@ internal fun SubPostsContent(
                                 confirmDeleteDialogState.show()
                             },
                         )
+                    }
+                    if (!hasMore && subPosts.isNotEmpty()) {
+                        item(key = "SubPostsEnd") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = stringResource(id = R.string.already_latest_reply),
+                                    style = MaterialTheme.typography.caption,
+                                    color = ExtendedTheme.colors.text.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     }
                 }
             }

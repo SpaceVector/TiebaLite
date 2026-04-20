@@ -97,6 +97,7 @@ import com.huanchengfly.tieba.post.utils.EmoticonUtil.emoticonString
 import com.huanchengfly.tieba.post.utils.ImageUtil
 import com.huanchengfly.tieba.post.utils.StringUtil
 import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
+import com.huanchengfly.tieba.post.utils.TiebaUtil
 import com.huanchengfly.tieba.post.utils.appPreferences
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -784,6 +785,7 @@ fun FeedCard(
     onClickOriginThread: (OriginThreadInfo) -> Unit = {},
     dislikeAction: @Composable () -> Unit = {},
 ) {
+    val context = LocalContext.current
     Card(
         header = {
             val author = remember(item) { item.getNullableImmutable { author } }
@@ -831,7 +833,13 @@ fun FeedCard(
             Row(modifier = Modifier.fillMaxWidth()) {
                 ThreadShareBtn(
                     shareNum = item.get { shareNum },
-                    onClick = {},
+                    onClick = {
+                        TiebaUtil.shareText(
+                            context,
+                            "https://tieba.baidu.com/p/${item.get { threadId }}",
+                            item.get { title }.takeIf { it.isNotBlank() }
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
 
@@ -865,6 +873,7 @@ fun FeedCard(
     onClickForum: (name: String) -> Unit = {},
     onClickOriginThread: (OriginThreadInfo) -> Unit = {},
 ) {
+    val context = LocalContext.current
     Card(
         header = {
             UserHeader(
@@ -917,7 +926,13 @@ fun FeedCard(
             Row(modifier = Modifier.fillMaxWidth()) {
                 ThreadShareBtn(
                     shareNum = item.get { share_num }.toLong(),
-                    onClick = {},
+                    onClick = {
+                        TiebaUtil.shareText(
+                            context,
+                            "https://tieba.baidu.com/p/${item.get { thread_id }}",
+                            item.get { title }.takeIf { !it.isNullOrBlank() }
+                        )
+                    },
                     modifier = Modifier.weight(1f)
                 )
 

@@ -613,16 +613,8 @@ sealed interface ThreadPartialChange : PartialChange<ThreadUiState> {
                 title = title,
                 author = if (author != null) wrapImmutable(author) else null,
                 threadInfo = threadInfo?.wrapImmutable(),
-                firstPost = if (threadInfo != null && author != null)
-                    wrapImmutable(
-                        Post(
-                            title = title,
-                            author = author,
-                            floor = 1,
-                            time = threadInfo.createTime
-                        )
-                    ) else null,
-                firstPostContentRenders = firstPostContentRenders.toImmutableList(),
+                firstPost = null,
+                firstPostContentRenders = persistentListOf(),
                 postId = postId,
                 seeLz = seeLz,
                 sortType = sortType,
