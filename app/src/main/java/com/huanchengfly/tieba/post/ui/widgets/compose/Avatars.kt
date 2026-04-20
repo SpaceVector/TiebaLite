@@ -11,6 +11,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.LocalContentAlpha
 import androidx.compose.material.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -22,6 +23,7 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.panpf.sketch.compose.AsyncImage
+import com.github.panpf.sketch.compose.rememberAsyncImageState
 import com.github.panpf.sketch.fetch.newResourceUri
 import com.github.panpf.sketch.request.DisplayRequest
 import com.google.accompanist.drawablepainter.rememberDrawablePainter
@@ -122,12 +124,16 @@ fun Avatar(
     shape: Shape = CircleShape,
 ) {
     val context = LocalContext.current
+    val request = remember(context, data) {
+        DisplayRequest(context, data) {
+            placeholder(ImageUtil.getPlaceHolder(context, 0))
+        }
+    }
+    val state = rememberAsyncImageState()
 
     AsyncImage(
-        request = DisplayRequest(LocalContext.current, data) {
-            placeholder(ImageUtil.getPlaceHolder(context, 0))
-            crossfade()
-        },
+        request = request,
+        state = state,
         contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier.clip(shape),
@@ -142,12 +148,16 @@ fun Avatar(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val request = remember(context, data) {
+        DisplayRequest(context, newResourceUri(data)) {
+            placeholder(ImageUtil.getPlaceHolder(context, 0))
+        }
+    }
+    val state = rememberAsyncImageState()
 
     AsyncImage(
-        request = DisplayRequest(LocalContext.current, newResourceUri(data)) {
-            placeholder(ImageUtil.getPlaceHolder(context, 0))
-            crossfade()
-        },
+        request = request,
+        state = state,
         contentDescription = contentDescription,
         contentScale = ContentScale.Crop,
         modifier = modifier

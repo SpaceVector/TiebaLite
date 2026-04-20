@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -198,6 +199,9 @@ private fun PreviewImage(
                             )
                         }
                         .clip(RoundedCornerShape(6.dp))
+                        .graphicsLayer {
+                            alpha = if (showPreview) 1f else animProgress.value
+                        }
                 ) {
                     AsyncImage(
                         request = request,
@@ -207,7 +211,7 @@ private fun PreviewImage(
                         contentScale = ContentScale.Crop
                     )
 
-                    if (originImageUri != null && animProgress.value >= 1f) {
+                    if (originImageUri != null) {
                         AsyncImage(
                             request = originRequest,
                             contentDescription = null,
