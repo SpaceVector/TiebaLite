@@ -8,10 +8,11 @@ import kotlinx.collections.immutable.persistentListOf
 
 
 object LauncherIcons {
-    const val NEW_ICON = "com.huanchengfly.tieba.post.MainActivityV2"
+    const val NEW_ICON = "com.huanchengfly.tieba.post.activities.MainActivity"
     const val NEW_ICON_THEMED = "com.huanchengfly.tieba.post.MainActivityIconThemed"
     const val NEW_ICON_INVERT = "com.huanchengfly.tieba.post.MainActivityIconInvert"
     const val OLD_ICON = "com.huanchengfly.tieba.post.MainActivityIconOld"
+    const val LEGACY_DEFAULT_ICON = "com.huanchengfly.tieba.post.MainActivityV2"
 
     const val DEFAULT_ICON = NEW_ICON
 
@@ -21,8 +22,6 @@ object LauncherIcons {
     val THEMED_ICON_MAPPING = mapOf(
         NEW_ICON to NEW_ICON_THEMED,
     )
-
-    const val OLD_LAUNCHER_ICON = "com.huanchengfly.tieba.post.activities.MainActivity"
 }
 
 object AppIconUtil {
@@ -41,7 +40,15 @@ object AppIconUtil {
         val useThemedIcon = isThemed && LauncherIcons.SUPPORT_THEMED_ICON.contains(icon)
         var newIcon = if (LauncherIcons.ICONS.contains(icon)) {
             icon
+        } else if (icon == LauncherIcons.LEGACY_DEFAULT_ICON) {
+            LauncherIcons.NEW_ICON
         } else LauncherIcons.DEFAULT_ICON
+        context.packageManager.enableComponent(
+            ComponentName(
+                context,
+                LauncherIcons.LEGACY_DEFAULT_ICON
+            )
+        )
         if (useThemedIcon) {
             newIcon = LauncherIcons.THEMED_ICON_MAPPING[newIcon] ?: newIcon
         }
@@ -52,12 +59,6 @@ object AppIconUtil {
                 context.packageManager.disableComponent(ComponentName(context, it))
             }
         }
-        context.packageManager.disableComponent(
-            ComponentName(
-                context,
-                LauncherIcons.OLD_LAUNCHER_ICON
-            )
-        )
     }
 
     /**
