@@ -268,6 +268,10 @@ object EmoticonManager {
         ).also { drawableCache[id] = it }
     }
 
+    fun clearMemoryCache() {
+        drawableCache.clear()
+    }
+
     fun getEmoticonUri(context: Context, id: String?): String {
         id ?: return ""
         val resId = getEmoticonResId(context, id)
