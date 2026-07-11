@@ -7,6 +7,12 @@ import android.graphics.Color
 import android.os.Build
 import androidx.core.view.WindowCompat
 
+internal fun isHyperOs(
+    manufacturer: String = Build.MANUFACTURER,
+    incrementalVersion: String = Build.VERSION.INCREMENTAL,
+): Boolean = manufacturer.equals("Xiaomi", ignoreCase = true) &&
+        incrementalVersion.startsWith("OS", ignoreCase = true)
+
 fun Activity.configureTransparentSystemBars(
     statusBarDarkIcons: Boolean,
     navigationBarDarkIcons: Boolean,

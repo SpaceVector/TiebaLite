@@ -59,6 +59,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.AccountNavIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.utils.AccountUtil.LocalAccount
+import com.huanchengfly.tieba.post.utils.isHyperOs
 import kotlinx.collections.immutable.ImmutableList
 
 enum class LayoutType {
@@ -379,7 +380,12 @@ fun BottomNavigation(
     navigationItems: ImmutableList<NavigationItem>,
     themeColors: ExtendedColors = ExtendedTheme.colors
 ) {
-    Column(modifier = Modifier.navigationBarsPadding()) {
+    val modifier = if (isHyperOs()) {
+        Modifier.background(themeColors.bottomBar)
+    } else {
+        Modifier
+    }
+    Column(modifier = modifier.navigationBarsPadding()) {
         BottomNavigationDivider(themeColors)
         BottomNavigation(
             backgroundColor = themeColors.bottomBar,
