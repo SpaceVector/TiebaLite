@@ -70,6 +70,7 @@ import com.huanchengfly.tieba.post.components.ClipBoardForumLink
 import com.huanchengfly.tieba.post.components.ClipBoardLink
 import com.huanchengfly.tieba.post.components.ClipBoardLinkDetector
 import com.huanchengfly.tieba.post.components.ClipBoardThreadLink
+import com.huanchengfly.tieba.post.receivers.FairMemoryStateStore
 import com.huanchengfly.tieba.post.services.NotifyJobService
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.page.NavGraphs
@@ -155,6 +156,7 @@ class MainActivityV2 : BaseComposeActivity() {
     private val newMessageReceiver: BroadcastReceiver = NewMessageReceiver()
     private var newMessageReceiverRegistered = false
     private var notificationPermissionJob: Job? = null
+    private var pendingFairMemoryNavigationState: Bundle? = null
 
     private val notificationCountFlow: MutableStateFlow<Int> = MutableStateFlow(0)
 
@@ -370,6 +372,8 @@ class MainActivityV2 : BaseComposeActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        pendingFairMemoryNavigationState = FairMemoryStateStore.consume(this)
+            .takeIf { savedInstanceState == null }
         installSplashScreen()
         super.onCreate(savedInstanceState)
         window.decorView.setBackgroundColor(0)
@@ -378,6 +382,11 @@ class MainActivityV2 : BaseComposeActivity() {
             ClientUtils.setActiveTimestamp()
         }
         intent?.let { checkIntent(it) }
+    }
+
+    internal fun saveFairMemoryNavigationState(): Boolean {
+        val state = myNavController?.saveState() ?: return true
+        return FairMemoryStateStore.save(this, state)
     }
 
     override fun onCreateContent() {
@@ -521,6 +530,10 @@ class MainActivityV2 : BaseComposeActivity() {
         TiebaLiteLocalProvider {
             TranslucentThemeBackground {
                 val navController = rememberNavController()
+                pendingFairMemoryNavigationState?.let {
+                    navController.restoreState(it)
+                    pendingFairMemoryNavigationState = null
+                }
                 val engine = TiebaNavHostDefaults.rememberNavHostEngine()
                 val navigator = TiebaNavHostDefaults.rememberBottomSheetNavigator()
                 val currentDestination by navController.currentDestinationAsState()

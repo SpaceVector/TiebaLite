@@ -29,19 +29,25 @@ import com.github.panpf.sketch.request.PauseLoadWhenScrollingDrawableDecodeInter
 import com.huanchengfly.tieba.post.activities.BaseActivity
 import com.huanchengfly.tieba.post.components.ClipBoardLinkDetector
 import com.huanchengfly.tieba.post.components.OAIDGetter
+import com.huanchengfly.tieba.post.receivers.FairMemoryAction
+import com.huanchengfly.tieba.post.receivers.FairMemoryStateStore
+import com.huanchengfly.tieba.post.receivers.HyperOsFairMemoryReceiver
 import com.huanchengfly.tieba.post.ui.common.theme.compose.dynamicTonalPalette
 import com.huanchengfly.tieba.post.ui.common.theme.interfaces.ThemeSwitcher
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
+import com.huanchengfly.tieba.post.ui.widgets.VoicePlayerView
 import com.huanchengfly.tieba.post.utils.AccountUtil
 import com.huanchengfly.tieba.post.utils.AppIconUtil
 import com.huanchengfly.tieba.post.utils.BlockManager
 import com.huanchengfly.tieba.post.utils.ClientUtils
 import com.huanchengfly.tieba.post.utils.EmoticonManager
+import com.huanchengfly.tieba.post.utils.ImageCacheUtil
 import com.huanchengfly.tieba.post.utils.SharedPreferencesUtil
 import com.huanchengfly.tieba.post.utils.ThemeUtil
 import com.huanchengfly.tieba.post.utils.Util
 import com.huanchengfly.tieba.post.utils.appPreferences
 import com.huanchengfly.tieba.post.utils.applicationMetaData
+import com.huanchengfly.tieba.post.utils.isHyperOs
 import com.huanchengfly.tieba.post.utils.packageInfo
 import com.microsoft.appcenter.AppCenter
 import com.microsoft.appcenter.analytics.Analytics
@@ -55,6 +61,7 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import net.swiftzer.semver.SemVer
 import org.litepal.LitePal
@@ -109,10 +116,31 @@ class App : Application(), SketchFactory {
         ThemeUtils.init(ThemeDelegate)
         registerActivityLifecycleCallbacks(ClipBoardLinkDetector)
         registerActivityLifecycleCallbacks(OAIDGetter)
+        if (isHyperOs() && getProcessName(this) == packageName) {
+            HyperOsFairMemoryReceiver.register(this, ::handleFairMemory)
+        }
         startupScope.launch {
             BlockManager.init()
             EmoticonManager.init(this@App)
         }
+    }
+
+    private fun handleFairMemory(action: FairMemoryAction): Boolean {
+        val stateSaved = action != FairMemoryAction.KILL ||
+                mActivityList.filterIsInstance<MainActivityV2>()
+                    .lastOrNull()
+                    ?.saveFairMemoryNavigationState() != false
+        if (action == FairMemoryAction.KILL && stateSaved) {
+            startupScope.launch {
+                delay(10_000)
+                FairMemoryStateStore.clear(this@App)
+            }
+        }
+        VoicePlayerView.Manager.release()
+        translucentBackground = null
+        EmoticonManager.clearMemoryCache()
+        ImageCacheUtil.clearImageMemoryCache(this)
+        return stateSaved
     }
 
     //解决魅族 Flyme 系统夜间模式强制反色
