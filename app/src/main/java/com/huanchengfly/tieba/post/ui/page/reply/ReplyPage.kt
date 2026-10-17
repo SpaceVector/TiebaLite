@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imeAnimationTarget
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeightIn
@@ -46,7 +47,6 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.LocalTextStyle
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Send
@@ -68,10 +68,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -89,7 +91,6 @@ import com.huanchengfly.tieba.post.arch.onEvent
 import com.huanchengfly.tieba.post.arch.onGlobalEvent
 import com.huanchengfly.tieba.post.arch.pageViewModel
 import com.huanchengfly.tieba.post.models.database.Draft
-import com.huanchengfly.tieba.post.pxToDpFloat
 import com.huanchengfly.tieba.post.toMD5
 import com.huanchengfly.tieba.post.toastShort
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
@@ -103,6 +104,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Dialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogNegativeButton
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogPositiveButton
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogState
+import com.huanchengfly.tieba.post.ui.widgets.compose.GlassBackdrop
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalFloatingSheetBackdrop
+import com.huanchengfly.tieba.post.ui.widgets.compose.floatingSheetSurface
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyBackHandler
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
@@ -132,7 +136,6 @@ import org.litepal.LitePal
 import org.litepal.extension.deleteAllAsync
 import org.litepal.extension.findFirstAsync
 import java.util.UUID
-import kotlin.math.max
 
 data class ReplyArgs(
     val forumId: Long,
@@ -147,35 +150,30 @@ data class ReplyArgs(
 )
 
 @Composable
-fun ReplyDialog(
+internal fun ReplyDialog(
     args: ReplyArgs,
     state: DialogState = rememberDialogState(),
+    backdrop: GlassBackdrop? = LocalFloatingSheetBackdrop.current,
 ) {
     BaseDialog(
         dialogState = state,
         imePadding = false,
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-            color = ExtendedTheme.colors.windowBackground,
-            elevation = 0.dp,
-        ) {
-            ReplyPageContent(
-                viewModel = pageViewModel(),
-                onBack = { dismiss() },
-                forumId = args.forumId,
-                forumName = args.forumName,
-                threadId = args.threadId,
-                postId = args.postId,
-                subPostId = args.subPostId,
-                replyUserId = args.replyUserId,
-                replyUserName = args.replyUserName,
-                replyUserPortrait = args.replyUserPortrait,
-                tbs = args.tbs,
-                isDialog = true
-            )
-        }
+        ReplyPageContent(
+            viewModel = pageViewModel(),
+            onBack = { dismiss() },
+            forumId = args.forumId,
+            forumName = args.forumName,
+            threadId = args.threadId,
+            postId = args.postId,
+            subPostId = args.subPostId,
+            replyUserId = args.replyUserId,
+            replyUserName = args.replyUserName,
+            replyUserPortrait = args.replyUserPortrait,
+            tbs = args.tbs,
+            isDialog = true,
+            backdrop = backdrop,
+        )
     }
 }
 
@@ -197,11 +195,13 @@ internal fun ReplyPageContent(
     replyUserPortrait: String? = null,
     tbs: String? = null,
     isDialog: Boolean = false,
+    backdrop: GlassBackdrop? = LocalFloatingSheetBackdrop.current,
 ) {
     val hash = remember(forumId, threadId, postId, subPostId) {
         "${threadId}_${postId}_${subPostId}".toMD5()
     }
     val context = LocalContext.current
+    val themeColors = ExtendedTheme.colors
     val coroutineScope = rememberCoroutineScope()
     val curTbs = remember(tbs) { tbs ?: AccountUtil.getAccountInfo { this.tbs }.orEmpty() }
 
@@ -388,21 +388,17 @@ internal fun ReplyPageContent(
             }
     }
 
-    val panelHeight by remember {
-        derivedStateOf { max(imeVisibleHeightPx.pxToDpFloat(), 150f).dp }
-    }
+    val panelHeight = with(density) { imeVisibleHeightPx.toDp().coerceAtLeast(150.dp) }
 
     val textMeasurer = rememberTextMeasurer()
 
-    val minResult = textMeasurer.measure(
-        AnnotatedString("\n\n"),
-        style = LocalTextStyle.current
-    ).size.height.pxToDpFloat().dp
+    val minResult = with(density) {
+        textMeasurer.measure(AnnotatedString("\n\n"), style = LocalTextStyle.current).size.height.toDp()
+    }
 
-    val maxResult = textMeasurer.measure(
-        AnnotatedString("\n\n\n\n\n"),
-        style = LocalTextStyle.current
-    ).size.height.pxToDpFloat().dp
+    val maxResult = with(density) {
+        textMeasurer.measure(AnnotatedString("\n\n\n\n\n"), style = LocalTextStyle.current).size.height.toDp()
+    }
 
     LaunchedEffect(closingPanel, imeAnimationEnd) {
         if (closingPanel) {
@@ -430,251 +426,295 @@ internal fun ReplyPageContent(
             .consumeWindowInsets(WindowInsets.ime)
     }
 
+    val minimumLift = if (context.appPreferences.liftUpBottomBar) {
+        with(density) { (16.dp - WindowInsets.navigationBars.getBottom(this).toDp()).coerceAtLeast(0.dp) }
+    } else 0.dp
     Column(
-        modifier = parentModifier,
+        modifier = parentModifier.padding(bottom = minimumLift),
         verticalArrangement = Arrangement.Bottom
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(id = R.string.title_reply),
-                modifier = Modifier.weight(1f),
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = "$textLength",
-                style = MaterialTheme.typography.caption,
-                color = ExtendedTheme.colors.textSecondary
-            )
-        }
-        VerticalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-        Box(
+        Column(
             modifier = Modifier
-                .wrapContentHeight()
                 .fillMaxWidth()
-                .imeNestedScroll(textFieldScrollState),
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .floatingSheetSurface(backdrop, ExtendedTheme.colors),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = 20.dp, end = 8.dp, top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(id = R.string.title_reply),
+                    modifier = Modifier.weight(1f),
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "$textLength",
+                    style = MaterialTheme.typography.caption,
+                    color = ExtendedTheme.colors.textSecondary
+                )
+                IconButton(onClick = onBack, modifier = Modifier.size(48.dp)) {
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.btn_close))
+                }
+            }
+            VerticalDivider(modifier = Modifier.padding(horizontal = 16.dp))
             Box(
                 modifier = Modifier
+                    .wrapContentHeight()
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .requiredHeightIn(min = minResult, max = maxResult)
-                    .verticalScroll(textFieldScrollState)
+                    .imeNestedScroll(textFieldScrollState),
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        (View.inflate(
-                            ctx,
-                            R.layout.layout_reply_edit_text,
-                            null
-                        ) as UndoableEditText).apply {
-                            editTextView = this
-                            if (subPostId != null && subPostId != 0L && replyUserName != null) {
-                                hint = ctx.getString(R.string.hint_reply, replyUserName)
-                            }
-                            setOnFocusChangeListener { _, hasFocus ->
-                                if (hasFocus) {
-                                    switchToPanel(NONE)
-                                }
-                            }
-                            addTextChangedListener(
-                                afterTextChanged = {
-                                    coroutineScope.launch {
-                                        curTextFlow.emit(it?.toString() ?: "")
-                                    }
-                                }
-                            )
-                            if (waitEditTextToSet) {
-                                waitEditTextToSet = false
-                                this.setText(StringUtil.getEmoticonContent(this, initialText))
-                                this.setSelection(initialText.length)
-                            }
-                        }
-                    },
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .wrapContentHeight(align = Alignment.Top)
-                )
-            }
-//            BaseTextField(
-//                value = text,
-//                onValueChange = { text = it },
-//                modifier = Modifier
-//                    .fillMaxWidth()
-//                    .padding(16.dp)
-//                    .requiredHeightIn(min = minResult, max = maxResult)
-//                    .focusRequester(focusRequester)
-//                    .verticalScroll(textFieldScrollState)
-//                    .onFocusChanged {
-//                        Log.i("ReplyPage", "onFocusChanged: $it")
-//                        if (it.hasFocus) {
-//                            switchToKeyboard(NONE)
-//                        }
-//                    },
-//                placeholder = { Text(text = stringResource(id = R.string.tip_reply)) },
-//            )
-        }
-        Row(
-            modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            IconButton(
-                onClick = { switchToPanel(EMOJI) },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.EmojiEmotions,
-                    contentDescription = stringResource(id = R.string.insert_emotions),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            if (postId == null || postId == 0L) {
-                IconButton(
-                    onClick = { switchToPanel(IMAGE) },
-                    modifier = Modifier.size(24.dp)
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                        .requiredHeightIn(min = minResult, max = maxResult)
+                        .verticalScroll(textFieldScrollState)
                 ) {
-                    BadgedBox(
-                        badge = {
-                            if (selectedImageList.isNotEmpty()) {
-                                Badge(
-                                    backgroundColor = ExtendedTheme.colors.accent,
-                                    contentColor = ExtendedTheme.colors.background,
-                                ) {
-                                    Text(
-                                        text = "${selectedImageList.size}",
-                                        style = MaterialTheme.typography.caption
-                                    )
+                    AndroidView(
+                        factory = { ctx ->
+                            (View.inflate(
+                                ctx,
+                                R.layout.layout_reply_edit_text,
+                                null
+                            ) as UndoableEditText).apply {
+                                editTextView = this
+                                if (subPostId != null && subPostId != 0L && replyUserName != null) {
+                                    hint = ctx.getString(R.string.hint_reply, replyUserName)
+                                }
+                                setOnFocusChangeListener { _, hasFocus ->
+                                    if (hasFocus) {
+                                        switchToPanel(NONE)
+                                    }
+                                }
+                                addTextChangedListener(
+                                    afterTextChanged = {
+                                        coroutineScope.launch {
+                                            curTextFlow.emit(it?.toString() ?: "")
+                                        }
+                                    }
+                                )
+                                if (waitEditTextToSet) {
+                                    waitEditTextToSet = false
+                                    this.setText(StringUtil.getEmoticonContent(this, initialText))
+                                    this.setSelection(initialText.length)
                                 }
                             }
+                        },
+                        update = {
+                            it.setTextColor(themeColors.text.toArgb())
+                            it.setHintTextColor(themeColors.textSecondary.toArgb())
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(align = Alignment.Top)
+                    )
+                }
+    //            BaseTextField(
+    //                value = text,
+    //                onValueChange = { text = it },
+    //                modifier = Modifier
+    //                    .fillMaxWidth()
+    //                    .padding(16.dp)
+    //                    .requiredHeightIn(min = minResult, max = maxResult)
+    //                    .focusRequester(focusRequester)
+    //                    .verticalScroll(textFieldScrollState)
+    //                    .onFocusChanged {
+    //                        Log.i("ReplyPage", "onFocusChanged: $it")
+    //                        if (it.hasFocus) {
+    //                            switchToKeyboard(NONE)
+    //                        }
+    //                    },
+    //                placeholder = { Text(text = stringResource(id = R.string.tip_reply)) },
+    //            )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(
+                    onClick = { switchToPanel(EMOJI) },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.EmojiEmotions,
+                        contentDescription = stringResource(id = R.string.insert_emotions),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                if (postId == null || postId == 0L) {
+                    IconButton(
+                        onClick = { switchToPanel(IMAGE) },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (selectedImageList.isNotEmpty()) {
+                                    Badge(
+                                        backgroundColor = ExtendedTheme.colors.accent,
+                                        contentColor = ExtendedTheme.colors.background,
+                                    ) {
+                                        Text(
+                                            text = "${selectedImageList.size}",
+                                            style = MaterialTheme.typography.caption
+                                        )
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.InsertPhoto,
+                                contentDescription = stringResource(id = R.string.insert_photo),
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
+                    }
+                }
+    //            IconButton(
+    //                onClick = { switchToPanel(VOICE) },
+    //                modifier = Modifier.size(24.dp)
+    //            ) {
+    //                Icon(
+    //                    imageVector = Icons.Outlined.KeyboardVoice,
+    //                    contentDescription = stringResource(id = R.string.insert_voice),
+    //                    modifier = Modifier.size(24.dp)
+    //                )
+    //            }
+                Spacer(modifier = Modifier.weight(1f))
+                if (isReplying) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        strokeWidth = 2.dp,
+                        color = ExtendedTheme.colors.primary
+                    )
+                } else {
+                    IconButton(
+                        onClick = {
+                            val replyContent = if (subPostId == null || subPostId == 0L) {
+                                getText()
+                            } else {
+                                "回复 #(reply, ${replyUserPortrait}, ${replyUserName}) :${getText()}"
+                            }
+                            if (selectedImageList.isEmpty()) {
+                                viewModel.send(
+                                    ReplyUiIntent.Send(
+                                        content = replyContent,
+                                        forumId = forumId,
+                                        forumName = forumName,
+                                        threadId = threadId,
+                                        tbs = curTbs,
+                                        postId = postId,
+                                        subPostId = subPostId,
+                                        replyUserId = replyUserId
+                                    )
+                                )
+                            } else {
+                                waitUploadSuccessToSend = true
+                                viewModel.send(
+                                    ReplyUiIntent.UploadImages(
+                                        forumName,
+                                        selectedImageList,
+                                        isOriginImage
+                                    )
+                                )
+                            }
+                        },
+                        enabled = canSend,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(
+                                ExtendedTheme.colors.accent.copy(alpha = if (canSend) 0.18f else 0.06f),
+                                RoundedCornerShape(24.dp),
+                            )
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.InsertPhoto,
-                            contentDescription = stringResource(id = R.string.insert_photo),
+                            imageVector = Icons.AutoMirrored.Rounded.Send,
+                            contentDescription = stringResource(id = R.string.send_reply),
                             modifier = Modifier.size(24.dp)
                         )
                     }
                 }
             }
-//            IconButton(
-//                onClick = { switchToPanel(VOICE) },
-//                modifier = Modifier.size(24.dp)
-//            ) {
-//                Icon(
-//                    imageVector = Icons.Outlined.KeyboardVoice,
-//                    contentDescription = stringResource(id = R.string.insert_voice),
-//                    modifier = Modifier.size(24.dp)
-//                )
-//            }
-            Spacer(modifier = Modifier.weight(1f))
-            if (isReplying) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp,
-                    color = ExtendedTheme.colors.primary
+            if (curKeyboardType != NONE) {
+                Column(modifier = Modifier.height(panelHeight)) {
+                    when (curKeyboardType) {
+                        EMOJI -> {
+                            EmoticonPanel(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp),
+                                onEmoticonClick = { emoticon ->
+                                    insertEmoticon("#(${emoticon.name})")
+                                }
+                            )
+                        }
+
+                        IMAGE -> {
+                            ImagePanel(
+                                selectedImages = selectedImageList,
+                                onNewImageSelected = { uris ->
+                                    viewModel.send(ReplyUiIntent.AddImage(uris.map { it.toString() }))
+                                },
+                                onRemoveImage = {
+                                    viewModel.send(ReplyUiIntent.RemoveImage(it))
+                                },
+                                isOriginImage = isOriginImage,
+                                onIsOriginImageChange = {
+                                    viewModel.send(ReplyUiIntent.ToggleIsOriginImage(it))
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                            )
+                        }
+
+                        else -> {}
+                    }
+                }
+            } else if (closingPanel) {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(panelHeight)
                 )
-            } else {
-                IconButton(
-                    onClick = {
-                        val replyContent = if (subPostId == null || subPostId == 0L) {
-                            getText()
-                        } else {
-                            "回复 #(reply, ${replyUserPortrait}, ${replyUserName}) :${getText()}"
-                        }
-                        if (selectedImageList.isEmpty()) {
-                            viewModel.send(
-                                ReplyUiIntent.Send(
-                                    content = replyContent,
-                                    forumId = forumId,
-                                    forumName = forumName,
-                                    threadId = threadId,
-                                    tbs = curTbs,
-                                    postId = postId,
-                                    subPostId = subPostId,
-                                    replyUserId = replyUserId
-                                )
-                            )
-                        } else {
-                            waitUploadSuccessToSend = true
-                            viewModel.send(
-                                ReplyUiIntent.UploadImages(
-                                    forumName,
-                                    selectedImageList,
-                                    isOriginImage
-                                )
-                            )
-                        }
-                    },
-                    enabled = canSend,
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.Send,
-                        contentDescription = stringResource(id = R.string.send_reply),
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
             }
         }
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsBottomHeight(WindowInsets.ime)
-        )
-        if (curKeyboardType != NONE) {
-            Column(modifier = Modifier.height(panelHeight)) {
-                when (curKeyboardType) {
-                    EMOJI -> {
-                        EmoticonPanel(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
-                            onEmoticonClick = { emoticon ->
-                                insertEmoticon("#(${emoticon.name})")
-                            }
-                        )
-                    }
-
-                    IMAGE -> {
-                        ImagePanel(
-                            selectedImages = selectedImageList,
-                            onNewImageSelected = { uris ->
-                                viewModel.send(ReplyUiIntent.AddImage(uris.map { it.toString() }))
-                            },
-                            onRemoveImage = {
-                                viewModel.send(ReplyUiIntent.RemoveImage(it))
-                            },
-                            isOriginImage = isOriginImage,
-                            onIsOriginImageChange = {
-                                viewModel.send(ReplyUiIntent.ToggleIsOriginImage(it))
-                            },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                        )
-                    }
-
-                    else -> {}
-                }
-            }
-        } else if (closingPanel) {
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(panelHeight)
-            )
-        }
+        // Keep IME space outside the glass, so the composer floats above the keyboard.
+        Spacer(Modifier.fillMaxWidth().windowInsetsBottomHeight(WindowInsets.ime))
     }
 
-    DisposableEffect(editTextView) {
-        if (editTextView != null) {
-            showKeyboard()
+    // Capture the effect's editor; the initial null-key cleanup must not hide a newly created one.
+    val editor = editTextView
+    val isWindowFocused = LocalWindowInfo.current.isWindowFocused
+    var requestedInitialKeyboard by remember(editor) { mutableStateOf(false) }
+    DisposableEffect(editor, isWindowFocused) {
+        val request = Runnable {
+            if (editor != null && editor.isAttachedToWindow && editor.hasWindowFocus() &&
+                !requestedInitialKeyboard
+            ) {
+                requestedInitialKeyboard = true
+                showKeyboard()
+            }
+        }
+        if (editor != null && !requestedInitialKeyboard) {
+            if (!isDialog) {
+                // Navigation sheets already use the Activity's focused window.
+                requestedInitialKeyboard = true
+                showKeyboard()
+            } else if (isWindowFocused) {
+                // A native Dialog may compose before gaining its own window focus.
+                // Focus first, then let the IME connect to the editor before showing it.
+                editor.requestFocus()
+                editor.post(request)
+            }
         }
 
+        onDispose { editor?.removeCallbacks(request) }
+    }
+    DisposableEffect(editor) {
         onDispose {
-            if (editTextView != null) {
+            if (editor != null) {
                 hideKeyboard()
             }
         }

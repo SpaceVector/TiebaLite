@@ -6,18 +6,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeightIn
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
@@ -35,7 +32,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +65,11 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.BlockTip
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockableContent
 import com.huanchengfly.tieba.post.ui.widgets.compose.Card
 import com.huanchengfly.tieba.post.ui.widgets.compose.ConfirmDialog
+import com.huanchengfly.tieba.post.ui.widgets.compose.FloatingReplyBar
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalFloatingSheetBackdrop
+import com.huanchengfly.tieba.post.ui.widgets.compose.floatingSheetSurface
+import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
+import com.huanchengfly.tieba.post.ui.widgets.compose.rememberGlassBackdrop
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
@@ -215,6 +217,10 @@ internal fun SubPostsContent(
     )
 
     val lazyListState = rememberLazyListState()
+    val backdrop = rememberGlassBackdrop()
+    val replyBackdrop = rememberGlassBackdrop()
+    val context = LocalContext.current
+    val colors = ExtendedTheme.colors
 
     viewModel.onEvent<SubPostsUiEvent.ScrollToSubPosts> {
         delay(20)
@@ -269,7 +275,7 @@ internal fun SubPostsContent(
     val replyDialogState = rememberDialogState()
     var currentReplyArgs by remember { mutableStateOf<ReplyArgs?>(null) }
     if (currentReplyArgs != null) {
-        ReplyDialog(args = currentReplyArgs!!, state = replyDialogState)
+        ReplyDialog(args = currentReplyArgs!!, state = replyDialogState, backdrop = replyBackdrop)
     }
 
 //    onGlobalEvent<GlobalEvent.ReplySuccess>(
@@ -290,114 +296,108 @@ internal fun SubPostsContent(
         replyDialogState.show()
     }
 
+    val panelModifier = if (isSheet) {
+        Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.88f)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .floatingSheetSurface(LocalFloatingSheetBackdrop.current, colors)
+    } else Modifier.fillMaxSize()
     StateScreen(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.glassBackdropSource(replyBackdrop).then(panelModifier),
         isEmpty = subPosts.isEmpty(),
         isError = false,
         isLoading = isRefreshing
     ) {
         MyScaffold(
             modifier = Modifier.fillMaxSize(),
+            backgroundColor = if (isSheet) Color.Transparent else colors.background,
+            contentColor = colors.text,
             topBar = {
-                TitleCentredToolbar(
-                    title = {
-                        Text(text = post?.let {
-                            stringResource(
-                                id = R.string.title_sub_posts,
-                                it.get { floor })
-                        } ?: stringResource(id = R.string.title_sub_posts_default),
-                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6)
-                    },
-                    navigationIcon = {
+                if (isSheet) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = post?.let { stringResource(R.string.title_sub_posts, it.get { floor }) }
+                                ?: stringResource(R.string.title_sub_posts_default),
+                            style = MaterialTheme.typography.subtitle1,
+                            fontWeight = FontWeight.Bold,
+                            color = colors.text,
+                            modifier = Modifier.weight(1f).padding(start = 12.dp),
+                        )
                         IconButton(onClick = onNavigateUp) {
-                            Icon(
-                                imageVector = if (isSheet) Icons.Rounded.Close else Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(id = R.string.btn_close)
-                            )
-                        }
-                    },
-                    actions = {
-                        if (!isSheet) {
-                            IconButton(onClick = {
-                                navigator.navigate(
-                                    ThreadPageDestination(
-                                        forumId = forumId,
-                                        threadId = threadId,
-                                        postId = postId
-                                    )
-                                )
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.OpenInBrowser,
-                                    contentDescription = stringResource(id = R.string.btn_open_origin_thread)
-                                )
-                            }
+                            Icon(Icons.Rounded.Close, stringResource(R.string.btn_close), tint = colors.text)
                         }
                     }
-                )
+                } else {
+                    TitleCentredToolbar(
+                        title = {
+                            Text(text = post?.let {
+                                stringResource(
+                                    id = R.string.title_sub_posts,
+                                    it.get { floor })
+                            } ?: stringResource(id = R.string.title_sub_posts_default),
+                                fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6)
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onNavigateUp) {
+                                Icon(
+                                    imageVector = if (isSheet) Icons.Rounded.Close else Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(id = R.string.btn_close)
+                                )
+                            }
+                        },
+                        actions = {
+                            if (!isSheet) {
+                                IconButton(onClick = {
+                                    navigator.navigate(
+                                        ThreadPageDestination(
+                                            forumId = forumId,
+                                            threadId = threadId,
+                                            postId = postId
+                                        )
+                                    )
+                                }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.OpenInBrowser,
+                                        contentDescription = stringResource(id = R.string.btn_open_origin_thread)
+                                    )
+                                }
+                            }
+                        }
+                    )
+                }
             },
             bottomBar = {
-                if (account != null && !LocalContext.current.appPreferences.hideReply) {
-                    Column(
-                        modifier = Modifier.background(ExtendedTheme.colors.threadBottomBar)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Avatar(
-                                data = StringUtil.getAvatarUrl(account.portrait),
-                                size = Sizes.Tiny,
-                                contentDescription = account.name,
-                            )
-                            Row(
-                                modifier = Modifier
-                                    .padding(vertical = 8.dp)
-                                    .weight(1f)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(ExtendedTheme.colors.bottomBarSurface)
-                                    .clickable {
-                                        val fid = forum?.get { id } ?: forumId
-                                        val forumName = forum?.get { name }
-                                        if (!forumName.isNullOrEmpty()) {
-                                            showReplyDialog(
-                                                ReplyArgs(
-                                                    forumId = fid,
-                                                    forumName = forumName,
-                                                    threadId = threadId,
-                                                    postId = postId,
-                                                )
-                                            )
-                                        }
-                                    }
-                                    .padding(8.dp),
-                            ) {
-                                Text(
-                                    text = stringResource(id = R.string.tip_reply_thread),
-                                    style = MaterialTheme.typography.caption,
-                                    color = ExtendedTheme.colors.onBottomBarSurface,
+                if (account != null && !context.appPreferences.hideReply) {
+                    FloatingReplyBar(
+                        avatarUrl = StringUtil.getAvatarUrl(account.portrait),
+                        backdrop = backdrop,
+                        liftUpBottomBar = context.appPreferences.liftUpBottomBar,
+                        onClick = {
+                            val fid = forum?.get { id } ?: forumId
+                            val forumName = forum?.get { name }
+                            if (!forumName.isNullOrEmpty()) {
+                                showReplyDialog(
+                                    ReplyArgs(
+                                        forumId = fid,
+                                        forumName = forumName,
+                                        threadId = threadId,
+                                        postId = postId,
+                                    )
                                 )
                             }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .requiredHeightIn(min = if (LocalContext.current.appPreferences.liftUpBottomBar) 16.dp else 0.dp)
-                        ) {
-                            Spacer(
-                                modifier = Modifier
-                                    .windowInsetsBottomHeight(WindowInsets.navigationBars)
-                            )
-                        }
-                    }
+                        },
+                    )
                 }
-            }
+            },
         ) { paddingValues ->
             LoadMoreLayout(
-                modifier = Modifier.padding(paddingValues),
+                modifier = Modifier
+                    .padding(top = paddingValues.calculateTopPadding())
+                    .glassBackdropSource(backdrop, if (isSheet) Color.Transparent else colors.background),
                 isLoading = isLoading,
                 onLoadMore = {
                     viewModel.send(
@@ -414,7 +414,10 @@ internal fun SubPostsContent(
                 lazyListState = lazyListState,
                 isEmpty = post == null && subPosts.isEmpty(),
             ) {
-                MyLazyColumn(state = lazyListState) {
+                MyLazyColumn(
+                    state = lazyListState,
+                    contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding()),
+                ) {
                     item(key = "Post$postId") {
                         post?.let {
                             Column {
@@ -468,7 +471,7 @@ internal fun SubPostsContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ExtendedTheme.colors.background)
+                                .background(colors.background.copy(alpha = if (isSheet) 0.55f else 1f))
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Text(

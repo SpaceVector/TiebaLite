@@ -26,9 +26,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
@@ -66,7 +67,7 @@ internal fun Modifier.glassBackdropSource(
     backgroundColor: Color = Color.Transparent,
 ): Modifier {
     if (backdrop == null) return this
-    return onGloballyPositioned { backdrop.contentPosition = it.positionInRoot() }
+    return onGloballyPositioned { backdrop.contentPosition = it.positionInWindow() }
         .drawWithContent {
             val canvas = drawContext.canvas
             if (!canvas.nativeCanvas.isHardwareAccelerated || size.isEmpty()) {
@@ -98,7 +99,7 @@ internal fun Modifier.glassBackdrop(backdrop: GlassBackdrop?): Modifier {
         DisposableEffect(glass) {
             onDispose { glass.discardDisplayList() }
         }
-        onGloballyPositioned { glassPosition = it.positionInRoot() }
+        onGloballyPositioned { glassPosition = it.positionInWindow() }
             .drawWithCache {
                 val radius = 12.dp.toPx()
                 val overscan = ceil(radius * 2).toInt()
@@ -135,10 +136,11 @@ internal fun Modifier.floatingGlassSurface(
     backdrop: GlassBackdrop?,
     themeColors: ExtendedColors,
     surfaceColor: Color = themeColors.bottomBar,
+    shape: Shape = CircleShape,
 ): Modifier {
     val opacity = if (backdrop == null) 0.66f else if (themeColors.isNightMode) 0.34f else 0.40f
-    return shadow(4.dp, CircleShape, clip = false)
-        .clip(CircleShape)
+    return shadow(4.dp, shape, clip = false)
+        .clip(shape)
         .glassBackdrop(backdrop)
         .background(surfaceColor.copy(alpha = opacity))
         .background(
@@ -154,6 +156,6 @@ internal fun Modifier.floatingGlassSurface(
                     )
                 ),
             ),
-            CircleShape,
+            shape,
         )
 }
