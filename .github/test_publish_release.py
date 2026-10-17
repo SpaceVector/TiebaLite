@@ -50,7 +50,7 @@ class PublishReleaseTest(unittest.TestCase):
         self.git("commit", "--quiet", "--allow-empty", "-m", "fix: 中文更新 $(touch INJECTED)")
         self.sha = self.git("rev-parse", "HEAD")
         self.version = "4.0.0-beta.1+" + self.sha[:7]
-        self.assets = ["dist/release-" + self.version + "(390100).apk", "dist/mapping.txt"]
+        self.assets = ["dist/release-" + self.version + "(390100).apk"]
         for name in self.assets:
             asset = self.root / name
             asset.parent.mkdir(parents=True, exist_ok=True)
@@ -102,7 +102,7 @@ class PublishReleaseTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         create = self.calls()[-1]
         self.assertEqual(create[:3], ["release", "create", "v" + self.version])
-        self.assertEqual(create[3:5], self.assets)
+        self.assertEqual(create[3:create.index("--target")], self.assets)
         self.assertEqual(create[create.index("--target") + 1], self.sha)
         self.assertIn("--prerelease=true", create)
         self.assertIn("fix: 中文更新 $(touch INJECTED)", self.notes())
@@ -178,6 +178,14 @@ class PublishReleaseTest(unittest.TestCase):
         for assets in [[], ["missing.apk"], ["empty.apk"]]:
             with self.subTest(assets=assets):
                 result = self.publish(assets=assets)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.calls(), [])
+
+    def test_non_apk_assets_fail_before_publication(self):
+        for name in ["release.zip", "mapping.txt", "output-metadata.json", "baseline-profile.dm"]:
+            with self.subTest(asset=name):
+                (self.root / name).write_bytes(b"not an APK")
+                result = self.publish(assets=[*self.assets, name])
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(self.calls(), [])
 

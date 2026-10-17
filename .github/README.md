@@ -1,6 +1,10 @@
 # GitHub Actions 与自动发布
 
-`workflows/build.yml` 编译 Release APK，保留 APK 和 R8 mapping 的 Actions 附件；构建任务全部成功后，独立的 `release` 任务将这两份产物发布到当前仓库的 GitHub Releases，不会重新编译。
+`workflows/build.yml` 编译 Release APK，分别保留 APK 和 R8 mapping 的 Actions 附件；构建任务全部成功后，独立的 `release` 任务**只将 APK 文件**发布到当前仓库的 GitHub Releases，不会重新编译。
+
+Actions 页面下载的 artifact 仍是 ZIP，但 APK artifact 内仅包含 `.apk`。发布任务会自动解包并直接上传 APK，不上传 ZIP、mapping、`output-metadata.json` 或 baseline 文件。发布脚本也会拒绝任何非 `.apk` 的附件。
+
+GitHub 自带的 **Source code (zip / tar.gz)** 下载链接仍会显示，它们不是工作流上传的附件，参见[官方说明](https://docs.github.com/en/repositories/releasing-projects-on-github/about-releases)。
 
 ## 发布规则
 

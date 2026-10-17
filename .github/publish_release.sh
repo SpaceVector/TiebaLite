@@ -16,6 +16,10 @@ if [[ "$#" -eq 0 ]]; then
     exit 1
 fi
 for asset in "$@"; do
+    if [[ "$asset" != *.apk ]]; then
+        echo "::error::Only APK files may be published: $asset"
+        exit 1
+    fi
     if [[ ! -s "$asset" ]]; then
         echo "::error::Missing or empty release asset: $asset"
         exit 1
