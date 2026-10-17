@@ -37,7 +37,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,6 +77,8 @@ import com.huanchengfly.tieba.post.services.NotifyJobService
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.page.NavGraphs
 import com.huanchengfly.tieba.post.ui.page.destinations.ForumPageDestination
+import com.huanchengfly.tieba.post.ui.page.destinations.ReplyPageDestination
+import com.huanchengfly.tieba.post.ui.page.destinations.SubPostsSheetPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.WebViewPageDestination
 import com.huanchengfly.tieba.post.ui.utils.DevicePosture
@@ -86,6 +90,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.AvatarIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.Dialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogNegativeButton
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogPositiveButton
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalFloatingSheetBackdrop
+import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
+import com.huanchengfly.tieba.post.ui.widgets.compose.rememberGlassBackdrop
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.SwipeableDefaults as AppSwipeableDefaults
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
@@ -110,6 +117,7 @@ import com.ramcosta.composedestinations.animations.rememberAnimatedNavHostEngine
 import com.ramcosta.composedestinations.navigation.navigate
 import com.ramcosta.composedestinations.spec.DestinationSpec
 import com.ramcosta.composedestinations.spec.Direction
+import com.ramcosta.composedestinations.spec.DestinationStyleBottomSheet
 import com.ramcosta.composedestinations.utils.currentDestinationAsState
 import com.ramcosta.composedestinations.utils.currentDestinationFlow
 import dagger.hilt.android.AndroidEntryPoint
@@ -537,6 +545,18 @@ class MainActivityV2 : BaseComposeActivity() {
                 val engine = TiebaNavHostDefaults.rememberNavHostEngine()
                 val navigator = TiebaNavHostDefaults.rememberBottomSheetNavigator()
                 val currentDestination by navController.currentDestinationAsState()
+                val isFloatingDestination = currentDestination == ReplyPageDestination ||
+                        currentDestination == SubPostsSheetPageDestination
+                var lastSheetFloating by remember { mutableStateOf(false) }
+                LaunchedEffect(currentDestination) {
+                    if (currentDestination?.style == DestinationStyleBottomSheet) {
+                        lastSheetFloating = isFloatingDestination
+                    }
+                }
+                // Keep the transparent host until the outgoing sheet finishes hiding.
+                val floatingSheet = isFloatingDestination ||
+                        (lastSheetFloating && navigator.navigatorSheetState.isVisible)
+                val sheetBackdrop = rememberGlassBackdrop(enabled = floatingSheet)
 
                 navController.navigatorProvider += navigator
 
@@ -555,14 +575,17 @@ class MainActivityV2 : BaseComposeActivity() {
                 CompositionLocalProvider(
                     LocalNavController provides navController,
                     LocalDestination provides currentDestination,
+                    LocalFloatingSheetBackdrop provides sheetBackdrop,
                 ) {
                     ModalBottomSheetLayout(
                         bottomSheetNavigator = navigator,
                         sheetShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-                        sheetBackgroundColor = ExtendedTheme.colors.windowBackground,
-                        scrimColor = Color.Black.copy(alpha = 0.32f),
+                        sheetBackgroundColor = if (floatingSheet) Color.Transparent else ExtendedTheme.colors.windowBackground,
+                        sheetElevation = if (floatingSheet) 0.dp else 8.dp,
+                        scrimColor = Color.Black.copy(alpha = if (floatingSheet) 0.18f else 0.32f),
                     ) {
                         DestinationsNavHost(
+                            modifier = Modifier.glassBackdropSource(sheetBackdrop, ExtendedTheme.colors.background),
                             navController = navController,
                             navGraph = NavGraphs.root,
                             engine = engine,

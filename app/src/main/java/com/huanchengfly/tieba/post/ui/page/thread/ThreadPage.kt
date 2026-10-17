@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,34 +32,20 @@ import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
 import androidx.compose.material.MaterialTheme
-import androidx.compose.material.ModalBottomSheetLayout
-import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.ProvideTextStyle
 import androidx.compose.material.SnackbarDuration
 import androidx.compose.material.SnackbarResult
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ChromeReaderMode
-import androidx.compose.material.icons.automirrored.rounded.ChromeReaderMode
-import androidx.compose.material.icons.automirrored.rounded.Sort
 import androidx.compose.material.icons.rounded.AlignVerticalTop
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Face6
-import androidx.compose.material.icons.rounded.FaceRetouchingOff
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Report
-import androidx.compose.material.icons.rounded.RocketLaunch
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material.rememberScaffoldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -72,6 +57,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -116,8 +102,6 @@ import com.huanchengfly.tieba.post.toastShort
 import com.huanchengfly.tieba.post.ui.common.PbContentRender
 import com.huanchengfly.tieba.post.ui.common.PbContentText
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
-import com.huanchengfly.tieba.post.ui.common.theme.compose.invertChipBackground
-import com.huanchengfly.tieba.post.ui.common.theme.compose.invertChipContent
 import com.huanchengfly.tieba.post.ui.common.theme.compose.loadMoreIndicator
 import com.huanchengfly.tieba.post.ui.common.theme.compose.pullRefreshIndicator
 import com.huanchengfly.tieba.post.ui.page.LocalNavigator
@@ -142,7 +126,6 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Container
 import com.huanchengfly.tieba.post.ui.widgets.compose.ErrorScreen
 import com.huanchengfly.tieba.post.ui.widgets.compose.HorizontalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
-import com.huanchengfly.tieba.post.ui.widgets.compose.ListMenuItem
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyBackHandler
@@ -151,12 +134,10 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.OriginThreadCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.PromptDialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
-import com.huanchengfly.tieba.post.ui.widgets.compose.TextWithMinWidth
 import com.huanchengfly.tieba.post.ui.widgets.compose.TipScreen
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
-import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalGrid
 import com.huanchengfly.tieba.post.ui.widgets.compose.buildChipInlineContent
 import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
@@ -384,57 +365,6 @@ private fun BottomBarPlaceholder() {
                 contentDescription = stringResource(id = R.string.btn_more),
                 tint = ExtendedTheme.colors.textSecondary,
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterialApi::class)
-@Composable
-private fun ToggleButton(
-    text: @Composable (() -> Unit),
-    checked: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    icon: @Composable (() -> Unit)? = null,
-    backgroundColor: Color = ExtendedTheme.colors.chip,
-    contentColor: Color = ExtendedTheme.colors.text,
-    selectedBackgroundColor: Color = ExtendedTheme.colors.invertChipBackground,
-    selectedContentColor: Color = ExtendedTheme.colors.invertChipContent,
-) {
-    val animatedColor by animateColorAsState(
-        if (checked) selectedContentColor else contentColor,
-        label = "toggleBtnColor"
-    )
-    val animatedBackgroundColor by animateColorAsState(
-        if (checked) selectedBackgroundColor else backgroundColor,
-        label = "toggleBtnBackgroundColor"
-    )
-
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        enabled = true,
-        shape = RoundedCornerShape(6.dp),
-        color = animatedBackgroundColor,
-        contentColor = animatedColor,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                if (icon != null) {
-                    icon()
-                }
-                ProvideTextStyle(
-                    value = MaterialTheme.typography.subtitle1.copy(
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                ) {
-                    text()
-                }
-            }
         }
     }
 }
@@ -699,10 +629,7 @@ fun ThreadPage(
     val themeColors = ExtendedTheme.colors
     val backdrop = rememberGlassBackdrop()
     val lazyListState = rememberLazyListState()
-    val bottomSheetState = rememberModalBottomSheetState(
-        initialValue = ModalBottomSheetValue.Hidden,
-        skipHalfExpanded = true
-    )
+    var menuExpanded by rememberSaveable(threadId) { mutableStateOf(false) }
     val lastVisibilityPost by remember {
         derivedStateOf {
             data.firstOrNull { (post) ->
@@ -718,22 +645,13 @@ fun ThreadPage(
     }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
-    val openBottomSheet = {
-        coroutineScope.launch {
-            bottomSheetState.show()
-        }
-    }
-    val closeBottomSheet = {
-        coroutineScope.launch {
-            bottomSheetState.hide()
-        }
-    }
+    val closeMoreMenu = { menuExpanded = false }
 
     MyBackHandler(
-        enabled = bottomSheetState.isVisible,
+        enabled = menuExpanded,
         currentScreen = ThreadPageDestination
     ) {
-        closeBottomSheet()
+        closeMoreMenu()
     }
 
     viewModel.onEvent<ThreadUiEvent.ScrollToFirstReply> {
@@ -813,7 +731,7 @@ fun ThreadPage(
         Text(text = stringResource(R.string.message_update_collect_mark, readFloorBeforeBack))
     }
     MyBackHandler(
-        enabled = isCollected && !bottomSheetState.isVisible,
+        enabled = isCollected && !menuExpanded,
         currentScreen = ThreadPageDestination
     ) {
         readFloorBeforeBack = lastVisibilityPost?.get { floor } ?: 0
@@ -1203,7 +1121,7 @@ fun ThreadPage(
                 topBar = {
                     TopBar(
                         forum = forum,
-                        onBack = { navigator.navigateUp() },
+                        onBack = { if (menuExpanded) closeMoreMenu() else navigator.navigateUp() },
                         onForumClick = {
                             val forumName = forum?.get { name }
                             if (forumName != null) navigator.navigate(
@@ -1215,168 +1133,18 @@ fun ThreadPage(
                     )
                 },
                 bottomBar = {
-                    ThreadBottomBar(
-                        showReply = user.get { is_login } == 1 && !context.appPreferences.hideReply,
-                        avatarUrl = StringUtil.getAvatarUrl(user.get { portrait }),
-                        liftUpBottomBar = context.appPreferences.liftUpBottomBar,
-                        backdrop = backdrop,
-                        onClickReply = {
-                            navigator.navigate(
-                                ReplyPageDestination(
-                                    forumId = curForumId ?: 0,
-                                    forumName = forum?.get { name }.orEmpty(),
-                                    threadId = threadId,
-                                )
-                            )
-                        },
-                        onAgree = {
-                            val firstPostId =
-                                thread?.get { firstPostId }.takeIf { it != 0L }
-                                    ?: firstPost?.get { id }
-                                    ?: 0L
-                            if (firstPostId != 0L) viewModel.send(
-                                ThreadUiIntent.AgreeThread(
-                                    threadId,
-                                    firstPostId,
-                                    !hasThreadAgreed
-                                )
-                            )
-                        },
-                        onClickMore = {
-                            if (bottomSheetState.isVisible) {
-                                closeBottomSheet()
-                            } else {
-                                openBottomSheet()
-                            }
-                        },
-                        hasAgreed = hasThreadAgreed,
-                        agreeNum = threadAgreeNum,
-                    )
+                    ThreadBottomBarSpacer(context.appPreferences.liftUpBottomBar)
                 },
             ) { paddingValues ->
-                ModalBottomSheetLayout(
-                    sheetState = bottomSheetState,
-                    sheetShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp),
-                    sheetBackgroundColor = ExtendedTheme.colors.windowBackground,
-                    sheetContent = {
-                        ThreadMenu(
-                            isSeeLz = isSeeLz,
-                            isCollected = isCollected,
-                            isImmersiveMode = isImmersiveMode,
-                            isDesc = curSortType == ThreadSortType.SORT_TYPE_DESC,
-                            canDelete = { author?.get { id } == user.get { id } },
-                            onSeeLzClick = {
-                                viewModel.send(
-                                    ThreadUiIntent.LoadFirstPage(
-                                        threadId,
-                                        forumId,
-                                        !isSeeLz,
-                                        curSortType
-                                    )
-                                )
-                                closeBottomSheet()
-                            },
-                            onCollectClick = {
-                                if (isCollected) {
-                                    val fid = forum?.get { id } ?: forumId
-                                    val tbs = anti?.get { tbs }
-                                    if (fid != null) {
-                                        viewModel.send(
-                                            ThreadUiIntent.RemoveFavorite(
-                                                threadId,
-                                                fid,
-                                                tbs
-                                            )
-                                        )
-                                    }
-                                } else {
-                                    val readItem = lastVisibilityPost
-                                    if (readItem != null) {
-                                        viewModel.send(
-                                            ThreadUiIntent.AddFavorite(
-                                                threadId,
-                                                readItem.get { id },
-                                                readItem.get { floor }
-                                            )
-                                        )
-                                    }
-                                }
-                                closeBottomSheet()
-                            },
-                            onImmersiveModeClick = {
-                                if (!isImmersiveMode && !isSeeLz) {
-                                    viewModel.send(
-                                        ThreadUiIntent.LoadFirstPage(
-                                            threadId,
-                                            forumId,
-                                            true,
-                                            curSortType
-                                        )
-                                    )
-                                }
-                                viewModel.send(ThreadUiIntent.ToggleImmersiveMode(!isImmersiveMode))
-                                closeBottomSheet()
-                            },
-                            onDescClick = {
-                                viewModel.send(
-                                    ThreadUiIntent.LoadFirstPage(
-                                        threadId,
-                                        forumId,
-                                        isSeeLz,
-                                        if (curSortType != ThreadSortType.SORT_TYPE_DESC) ThreadSortType.SORT_TYPE_DESC else ThreadSortType.SORT_TYPE_DEFAULT
-                                    )
-                                )
-                                closeBottomSheet()
-                            },
-                            onJumpPageClick = {
-                                closeBottomSheet()
-                                jumpToPageDialogState.show()
-                            },
-                            onShareClick = {
-                                TiebaUtil.shareText(
-                                    context,
-                                    "https://tieba.baidu.com/p/$threadId",
-                                    threadTitle
-                                )
-                            },
-                            onCopyLinkClick = {
-                                TiebaUtil.copyText(
-                                    context,
-                                    "https://tieba.baidu.com/p/$threadId?see_lz=${isSeeLz.booleanToString()}"
-                                )
-                            },
-                            onReportClick = {
-                                val firstPostId =
-                                    thread?.get { firstPostId }.takeIf { it != 0L }
-                                        ?: firstPost?.get { id }
-                                        ?: 0L
-                                coroutineScope.launch {
-                                    TiebaUtil.reportPost(
-                                        context,
-                                        navigator,
-                                        firstPostId.toString()
-                                    )
-                                }
-                            },
-                            onDeleteClick = {
-                                deletePost = null
-                                confirmDeleteDialogState.show()
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 16.dp)
-                                .padding(bottom = paddingValues.calculateBottomPadding())
-                                .defaultMinSize(minHeight = 1.dp)
-                        )
-                    },
-                    scrimColor = Color.Transparent,
-                    modifier = Modifier
+                Box(
+                    Modifier
                         .fillMaxSize()
                         .padding(top = paddingValues.calculateTopPadding())
-                        .glassBackdropSource(backdrop, themeColors.background)
                 ) {
                     Box(
                         modifier = Modifier
+                            .fillMaxSize()
+                            .glassBackdropSource(backdrop, themeColors.background)
                             .pullRefresh(state = pullRefreshState, enabled = enablePullRefresh)
                     ) {
                         LoadMoreLayout(
@@ -1714,6 +1482,162 @@ fun ThreadPage(
                             contentColor = ExtendedTheme.colors.primary,
                         )
                     }
+                    if (menuExpanded) {
+                        Box(
+                            Modifier
+                                .matchParentSize()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = closeMoreMenu,
+                                )
+                        )
+                    }
+                    ThreadBottomBar(
+                        showReply = user.get { is_login } == 1 && !context.appPreferences.hideReply,
+                        avatarUrl = StringUtil.getAvatarUrl(user.get { portrait }),
+                        liftUpBottomBar = context.appPreferences.liftUpBottomBar,
+                        backdrop = backdrop,
+                        onClickReply = {
+                            closeMoreMenu()
+                            navigator.navigate(
+                                ReplyPageDestination(
+                                    forumId = curForumId ?: 0,
+                                    forumName = forum?.get { name }.orEmpty(),
+                                    threadId = threadId,
+                                )
+                            )
+                        },
+                        onAgree = {
+                            val firstPostId =
+                                thread?.get { firstPostId }.takeIf { it != 0L }
+                                    ?: firstPost?.get { id }
+                                    ?: 0L
+                            if (firstPostId != 0L) viewModel.send(
+                                ThreadUiIntent.AgreeThread(
+                                    threadId,
+                                    firstPostId,
+                                    !hasThreadAgreed
+                                )
+                            )
+                        },
+                        onClickMore = { menuExpanded = !menuExpanded },
+                        hasAgreed = hasThreadAgreed,
+                        agreeNum = threadAgreeNum,
+                        modifier = Modifier.align(Alignment.BottomCenter),
+                        menuExpanded = menuExpanded,
+                        moreContent = {
+                            ThreadMoreMenu(
+                                isSeeLz = isSeeLz,
+                                isCollected = isCollected,
+                                isImmersiveMode = isImmersiveMode,
+                                isDesc = curSortType == ThreadSortType.SORT_TYPE_DESC,
+                                canDelete = { author?.get { id } == user.get { id } },
+                                onSeeLzClick = {
+                                    viewModel.send(
+                                        ThreadUiIntent.LoadFirstPage(
+                                            threadId,
+                                            forumId,
+                                            !isSeeLz,
+                                            curSortType
+                                        )
+                                    )
+                                    closeMoreMenu()
+                                },
+                                onCollectClick = {
+                                    if (isCollected) {
+                                        val fid = forum?.get { id } ?: forumId
+                                        val tbs = anti?.get { tbs }
+                                        if (fid != null) {
+                                            viewModel.send(
+                                                ThreadUiIntent.RemoveFavorite(
+                                                    threadId,
+                                                    fid,
+                                                    tbs
+                                                )
+                                            )
+                                        }
+                                    } else {
+                                        val readItem = lastVisibilityPost
+                                        if (readItem != null) {
+                                            viewModel.send(
+                                                ThreadUiIntent.AddFavorite(
+                                                    threadId,
+                                                    readItem.get { id },
+                                                    readItem.get { floor }
+                                                )
+                                            )
+                                        }
+                                    }
+                                    closeMoreMenu()
+                                },
+                                onImmersiveModeClick = {
+                                    if (!isImmersiveMode && !isSeeLz) {
+                                        viewModel.send(
+                                            ThreadUiIntent.LoadFirstPage(
+                                                threadId,
+                                                forumId,
+                                                true,
+                                                curSortType
+                                            )
+                                        )
+                                    }
+                                    viewModel.send(ThreadUiIntent.ToggleImmersiveMode(!isImmersiveMode))
+                                    closeMoreMenu()
+                                },
+                                onDescClick = {
+                                    viewModel.send(
+                                        ThreadUiIntent.LoadFirstPage(
+                                            threadId,
+                                            forumId,
+                                            isSeeLz,
+                                            if (curSortType != ThreadSortType.SORT_TYPE_DESC) ThreadSortType.SORT_TYPE_DESC else ThreadSortType.SORT_TYPE_DEFAULT
+                                        )
+                                    )
+                                    closeMoreMenu()
+                                },
+                                onJumpPageClick = {
+                                    closeMoreMenu()
+                                    jumpToPageDialogState.show()
+                                },
+                                onShareClick = {
+                                    closeMoreMenu()
+                                    TiebaUtil.shareText(
+                                        context,
+                                        "https://tieba.baidu.com/p/$threadId",
+                                        threadTitle
+                                    )
+                                },
+                                onCopyLinkClick = {
+                                    closeMoreMenu()
+                                    TiebaUtil.copyText(
+                                        context,
+                                        "https://tieba.baidu.com/p/$threadId?see_lz=${isSeeLz.booleanToString()}"
+                                    )
+                                },
+                                onReportClick = {
+                                    closeMoreMenu()
+                                    val firstPostId =
+                                        thread?.get { firstPostId }.takeIf { it != 0L }
+                                            ?: firstPost?.get { id }
+                                            ?: 0L
+                                    coroutineScope.launch {
+                                        TiebaUtil.reportPost(
+                                            context,
+                                            navigator,
+                                            firstPostId.toString()
+                                        )
+                                    }
+                                },
+                                onDeleteClick = {
+                                    closeMoreMenu()
+                                    deletePost = null
+                                    confirmDeleteDialogState.show()
+                                },
+                                themeColors = themeColors,
+                            )
+                        },
+                    )
                 }
             }
         }
@@ -2147,167 +2071,4 @@ fun UserNameText(
         ),
         modifier = modifier
     )
-}
-
-@Composable
-private fun ThreadMenu(
-    isSeeLz: Boolean,
-    isCollected: Boolean,
-    isImmersiveMode: Boolean,
-    isDesc: Boolean,
-    canDelete: () -> Boolean,
-    onSeeLzClick: () -> Unit,
-    onCollectClick: () -> Unit,
-    onImmersiveModeClick: () -> Unit,
-    onDescClick: () -> Unit,
-    onJumpPageClick: () -> Unit,
-    onShareClick: () -> Unit,
-    onCopyLinkClick: () -> Unit,
-    onReportClick: () -> Unit,
-    onDeleteClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        Spacer(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .height(4.dp)
-                .fillMaxWidth(0.25f)
-                .clip(RoundedCornerShape(100))
-                .background(ExtendedTheme.colors.chip)
-        )
-        VerticalGrid(
-            column = 2,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            rowModifier = Modifier.height(IntrinsicSize.Min),
-            modifier = Modifier.padding(horizontal = 16.dp),
-        ) {
-            item {
-                ToggleButton(
-                    text = {
-                        TextWithMinWidth(
-                            text = stringResource(id = R.string.title_see_lz),
-                            minLength = 4
-                        )
-                    },
-                    checked = isSeeLz,
-                    onClick = onSeeLzClick,
-                    icon = {
-                        Icon(
-                            imageVector = if (isSeeLz) Icons.Rounded.Face6 else Icons.Rounded.FaceRetouchingOff,
-                            contentDescription = null
-                        )
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            item {
-                ToggleButton(
-                    text = {
-                        TextWithMinWidth(
-                            text = stringResource(
-                                id = if (isCollected) R.string.title_collected else R.string.title_uncollected
-                            ),
-                            minLength = 4
-                        )
-                    },
-                    checked = isCollected,
-                    onClick = onCollectClick,
-                    icon = {
-                        Icon(
-                            imageVector = if (isCollected) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                            contentDescription = null
-                        )
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            item {
-                ToggleButton(
-                    text = {
-                        TextWithMinWidth(
-                            text = stringResource(
-                                id = R.string.title_pure_read
-                            ),
-                            minLength = 4
-                        )
-                    },
-                    checked = isImmersiveMode,
-                    onClick = onImmersiveModeClick,
-                    icon = {
-                        Icon(
-                            imageVector = if (isImmersiveMode) Icons.AutoMirrored.Rounded.ChromeReaderMode else Icons.AutoMirrored.Outlined.ChromeReaderMode,
-                            contentDescription = null
-                        )
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-            item {
-                ToggleButton(
-                    text = {
-                        TextWithMinWidth(
-                            text = stringResource(
-                                id = R.string.title_sort
-                            ),
-                            minLength = 4
-                        )
-                    },
-                    checked = isDesc,
-                    onClick = onDescClick,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Sort,
-                            contentDescription = null
-                        )
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-        Column {
-            ListMenuItem(
-                icon = Icons.Rounded.RocketLaunch,
-                text = stringResource(id = R.string.title_jump_page),
-                iconColor = ExtendedTheme.colors.text,
-                onClick = onJumpPageClick,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ListMenuItem(
-                icon = Icons.Rounded.Share,
-                text = stringResource(id = R.string.title_share),
-                iconColor = ExtendedTheme.colors.text,
-                onClick = onShareClick,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ListMenuItem(
-                icon = Icons.Rounded.ContentCopy,
-                text = stringResource(id = R.string.title_copy_link),
-                iconColor = ExtendedTheme.colors.text,
-                onClick = onCopyLinkClick,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            ListMenuItem(
-                icon = Icons.Rounded.Report,
-                text = stringResource(id = R.string.title_report),
-                iconColor = ExtendedTheme.colors.text,
-                onClick = onReportClick,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (canDelete()) {
-                ListMenuItem(
-                    icon = Icons.Rounded.Delete,
-                    text = stringResource(id = R.string.title_delete),
-                    iconColor = ExtendedTheme.colors.text,
-                    onClick = onDeleteClick,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-    }
 }
