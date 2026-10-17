@@ -1,10 +1,20 @@
 name: Build, Deploy
 
-on: [ push, pull_request ]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version_code: ${{ steps.read_output_metadata.outputs.version_code }}
+      version_name: ${{ steps.read_output_metadata.outputs.version_name }}
+      signing_configured: ${{ steps.signing.outputs.configured }}
 
     steps:
       - name: Checkout
@@ -17,6 +27,7 @@ jobs:
           distribution: "zulu"
 
       - name: Generate keystore.properties
+        id: signing
         if: ${{ github.event_name != 'pull_request' || github.ref_type == 'tag' }}
         env:
           RELEASE_KEYSTORE: ${{ vars.RELEASE_KEYSTORE }}
@@ -26,7 +37,8 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASEKEYPASSWORD }}
         run: |
           if [ -z "$RELEASE_KEYSTORE" ] || [ -z "$RELEASE_KEY_ALIAS" ] || [ -z "$KEYSTORE_B64" ] || [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
-            echo "Release signing secrets are not configured, skipping keystore generation."
+            echo "::warning::Release signing is not configured; the release APK will use the debug signing key."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -35,12 +47,16 @@ jobs:
           echo keystore.password="$RELEASE_STORE_PASSWORD" >> keystore.properties
           echo keystore.key.alias="$RELEASE_KEY_ALIAS" >> keystore.properties
           echo keystore.key.password="$RELEASE_KEY_PASSWORD" >> keystore.properties
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-home-cache-cleanup: false
           cache-read-only: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/4.0-dev' }}
+
+      - name: Test release automation
+        run: python3 .github/test_publish_release.py
 
       - name: Build with Gradle
         run: ./gradlew assembleRelease
@@ -66,12 +82,14 @@ jobs:
         with:
           name: "release-${{ steps.read_output_metadata.outputs.version_name }}(${{ steps.read_output_metadata.outputs.version_code }})"
           path: ./app/build/outputs/apk/release
+          if-no-files-found: error
 
       - name: Upload Mapping
         uses: actions/upload-artifact@v4
         with:
           name: mapping
           path: ./app/build/outputs/mapping/release
+          if-no-files-found: error
 
       - name: Post to channel
         if: ${{ github.event_name != 'pull_request' && !contains(github.event.head_commit.message, '[skip post]') }}
@@ -113,3 +131,43 @@ jobs:
             -n "$version_name" \
             -m ./app/build/outputs/mapping/release/mapping.txt \
             -a "$APP_CENTER_APP"
+
+  release:
+    needs: build
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/4.0-dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout release history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download Release Package
+        uses: actions/download-artifact@v4
+        with:
+          name: "release-${{ needs.build.outputs.version_name }}(${{ needs.build.outputs.version_code }})"
+          path: dist/apk
+
+      - name: Download Mapping
+        uses: actions/download-artifact@v4
+        with:
+          name: mapping
+          path: dist/mapping
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION_CODE: ${{ needs.build.outputs.version_code }}
+          VERSION_NAME: ${{ needs.build.outputs.version_name }}
+          SIGNING_CONFIGURED: ${{ needs.build.outputs.signing_configured }}
+        run: bash .github/publish_release.sh dist/apk/*.apk dist/mapping/mapping.txt
