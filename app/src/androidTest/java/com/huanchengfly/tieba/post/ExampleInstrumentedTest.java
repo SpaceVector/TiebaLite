@@ -6,6 +6,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Instrumented test, which will execute on an Android device.
@@ -19,6 +20,7 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = ApplicationProvider.getApplicationContext();
 
-        assertEquals("com.huanchengfly.tieba.post", appContext.getPackageName());
+        assertEquals(BuildConfig.APPLICATION_ID, appContext.getPackageName());
+        assertTrue("Device tests must not target the daily app", appContext.getPackageName().endsWith(".debug"));
     }
 }

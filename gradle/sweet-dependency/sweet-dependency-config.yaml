@@ -113,7 +113,7 @@ libraries:
       version: <no-spec>
   androidx.test:
     core:
-      version: 1.5.0
+      version: 1.7.0
     rules:
       version: 1.5.0
     runner:
@@ -124,7 +124,7 @@ libraries:
   androidx.test.espresso:
     espresso-core:
       alias: androidx-test-espresso-core
-      version: 3.5.1
+      version: 3.7.0
   com.squareup.wire:
     wire-runtime:
       alias: wire-runtime
