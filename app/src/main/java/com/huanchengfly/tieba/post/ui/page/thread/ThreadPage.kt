@@ -13,19 +13,15 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredHeightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -124,7 +120,6 @@ import com.huanchengfly.tieba.post.ui.common.theme.compose.invertChipBackground
 import com.huanchengfly.tieba.post.ui.common.theme.compose.invertChipContent
 import com.huanchengfly.tieba.post.ui.common.theme.compose.loadMoreIndicator
 import com.huanchengfly.tieba.post.ui.common.theme.compose.pullRefreshIndicator
-import com.huanchengfly.tieba.post.ui.common.theme.compose.threadBottomBar
 import com.huanchengfly.tieba.post.ui.page.LocalNavigator
 import com.huanchengfly.tieba.post.ui.page.ProvideNavigator
 import com.huanchengfly.tieba.post.ui.page.destinations.CopyTextDialogPageDestination
@@ -163,7 +158,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalGrid
 import com.huanchengfly.tieba.post.ui.widgets.compose.buildChipInlineContent
+import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
+import com.huanchengfly.tieba.post.ui.widgets.compose.rememberGlassBackdrop
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberMenuState
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.DateTimeUtils.getRelativeTimeString
@@ -699,6 +696,8 @@ fun ThreadPage(
     val curTbs = remember(anti) { anti?.get { tbs } }
     var waitLoadSuccessAndScrollToFirstReply by remember { mutableStateOf(scrollToReply) }
 
+    val themeColors = ExtendedTheme.colors
+    val backdrop = rememberGlassBackdrop()
     val lazyListState = rememberLazyListState()
     val bottomSheetState = rememberModalBottomSheetState(
         initialValue = ModalBottomSheetValue.Hidden,
@@ -1216,8 +1215,11 @@ fun ThreadPage(
                     )
                 },
                 bottomBar = {
-                    BottomBar(
-                        user = user,
+                    ThreadBottomBar(
+                        showReply = user.get { is_login } == 1 && !context.appPreferences.hideReply,
+                        avatarUrl = StringUtil.getAvatarUrl(user.get { portrait }),
+                        liftUpBottomBar = context.appPreferences.liftUpBottomBar,
+                        backdrop = backdrop,
                         onClickReply = {
                             navigator.navigate(
                                 ReplyPageDestination(
@@ -1249,12 +1251,6 @@ fun ThreadPage(
                         },
                         hasAgreed = hasThreadAgreed,
                         agreeNum = threadAgreeNum,
-                        modifier = Modifier
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {}
-                            )
                     )
                 },
             ) { paddingValues ->
@@ -1369,13 +1365,15 @@ fun ThreadPage(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 16.dp)
+                                .padding(bottom = paddingValues.calculateBottomPadding())
                                 .defaultMinSize(minHeight = 1.dp)
                         )
                     },
                     scrimColor = Color.Transparent,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues)
+                        .padding(top = paddingValues.calculateTopPadding())
+                        .glassBackdropSource(backdrop, themeColors.background)
                 ) {
                     Box(
                         modifier = Modifier
@@ -1411,12 +1409,14 @@ fun ThreadPage(
                             },
                             loadEnd = loadMoreEnd,
                             indicator = { isLoading, loadMoreEnd, willLoad ->
-                                ThreadLoadMoreIndicator(
-                                    isLoading,
-                                    loadMoreEnd,
-                                    willLoad,
-                                    hasMore
-                                )
+                                Box(Modifier.padding(bottom = paddingValues.calculateBottomPadding())) {
+                                    ThreadLoadMoreIndicator(
+                                        isLoading,
+                                        loadMoreEnd,
+                                        willLoad,
+                                        hasMore
+                                    )
+                                }
                             },
                             lazyListState = lazyListState,
                             isEmpty = data.isEmpty(),
@@ -1424,6 +1424,7 @@ fun ThreadPage(
                         ) {
                             MyLazyColumn(
                                 state = lazyListState,
+                                contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding()),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 item(key = "FirstPost") {
@@ -1765,91 +1766,6 @@ private fun TopBar(
         },
         modifier = modifier
     )
-}
-
-@Composable
-private fun BottomBar(
-    user: ImmutableHolder<User>,
-    onClickReply: () -> Unit,
-    onAgree: () -> Unit,
-    onClickMore: () -> Unit,
-    modifier: Modifier = Modifier,
-    hasAgreed: Boolean = false,
-    agreeNum: Long = 0,
-) {
-    Column(
-        modifier = Modifier.background(ExtendedTheme.colors.threadBottomBar)
-    ) {
-        Row(
-            modifier = Modifier
-                .height(IntrinsicSize.Min)
-                .then(modifier)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (user.get { is_login } == 1 && !LocalContext.current.appPreferences.hideReply) {
-                Avatar(
-                    data = StringUtil.getAvatarUrl(user.get { portrait }),
-                    size = Sizes.Tiny,
-                    contentDescription = user.get { name },
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .weight(1f)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(ExtendedTheme.colors.bottomBarSurface)
-                        .clickable(onClick = onClickReply)
-                        .padding(8.dp),
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.tip_reply_thread),
-                        style = MaterialTheme.typography.caption,
-                        color = ExtendedTheme.colors.onBottomBarSurface,
-                    )
-                }
-            } else {
-                Spacer(modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp))
-            }
-
-            BottomBarAgreeBtn(
-                hasAgreed = hasAgreed,
-                agreeNum = agreeNum,
-                onClick = onAgree,
-                modifier = Modifier.fillMaxHeight()
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .clickable(onClick = onClickMore)
-                    .padding(horizontal = 4.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.MoreVert,
-                    contentDescription = stringResource(id = R.string.btn_more),
-                    tint = ExtendedTheme.colors.textSecondary,
-                )
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .requiredHeightIn(min = if (LocalContext.current.appPreferences.liftUpBottomBar) 16.dp else 0.dp)
-        ) {
-            Spacer(
-                modifier = Modifier
-                    .windowInsetsBottomHeight(WindowInsets.navigationBars)
-            )
-        }
-    }
 }
 
 @Composable

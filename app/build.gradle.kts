@@ -74,6 +74,11 @@ android {
                     signingConfigs.getByName("config")
                 else signingConfigs.getByName("debug")
         }
+        debug {
+            // Keep development installs and instrumentation data separate from the daily app.
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
