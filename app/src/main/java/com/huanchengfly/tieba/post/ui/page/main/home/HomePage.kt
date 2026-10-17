@@ -78,6 +78,7 @@ import com.huanchengfly.tieba.post.arch.pageViewModel
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.common.theme.compose.pullRefreshIndicator
 import com.huanchengfly.tieba.post.ui.page.LocalNavigator
+import com.huanchengfly.tieba.post.ui.page.main.LocalMainNavigationBottomPadding
 import com.huanchengfly.tieba.post.ui.page.destinations.ForumPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.LoginPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.SearchPageDestination
@@ -518,7 +519,7 @@ fun HomePage(
                 ) {
                     MyLazyVerticalGrid(
                         columns = gridCells,
-                        contentPadding = PaddingValues(bottom = 12.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp + LocalMainNavigationBottomPadding.current),
                         modifier = Modifier.fillMaxSize(),
                     ) {
                         if (showHistoryForum) {
@@ -699,7 +700,7 @@ private fun HomePageSkeletonScreen(
 ) {
     MyLazyVerticalGrid(
         columns = gridCells,
-        contentPadding = PaddingValues(bottom = 12.dp),
+        contentPadding = PaddingValues(bottom = 12.dp + LocalMainNavigationBottomPadding.current),
         modifier = Modifier
             .fillMaxSize(),
     ) {
@@ -764,6 +765,7 @@ fun EmptyScreen(
 ) {
     val navigator = LocalNavigator.current
     TipScreen(
+        modifier = Modifier.padding(bottom = LocalMainNavigationBottomPadding.current),
         title = {
             if (!loggedIn) {
                 Text(text = stringResource(id = R.string.title_empty_login))

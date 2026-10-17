@@ -50,6 +50,7 @@ import com.huanchengfly.tieba.post.models.database.Account
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.common.theme.compose.pullRefreshIndicator
 import com.huanchengfly.tieba.post.ui.page.LocalNavigator
+import com.huanchengfly.tieba.post.ui.page.main.LocalMainNavigationBottomPadding
 import com.huanchengfly.tieba.post.ui.page.destinations.AboutPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.AppThemePageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.HistoryPageDestination
@@ -281,6 +282,7 @@ fun UserPage(
                 modifier = Modifier
                     .verticalScroll(state = rememberScrollState())
                     .fillMaxSize()
+                    .padding(bottom = LocalMainNavigationBottomPadding.current)
             ) {
                 if (account != null) {
                     InfoCard(

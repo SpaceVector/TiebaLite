@@ -1,8 +1,10 @@
 package com.huanchengfly.tieba.post.ui.page.main
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +37,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,9 +60,10 @@ import com.huanchengfly.tieba.post.ui.common.theme.compose.White
 import com.huanchengfly.tieba.post.ui.utils.MainNavigationContentPosition
 import com.huanchengfly.tieba.post.ui.widgets.compose.AccountNavIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
+import com.huanchengfly.tieba.post.ui.widgets.compose.GlassBackdrop
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
+import com.huanchengfly.tieba.post.ui.widgets.compose.floatingGlassSurface
 import com.huanchengfly.tieba.post.utils.AccountUtil.LocalAccount
-import com.huanchengfly.tieba.post.utils.isHyperOs
 import kotlinx.collections.immutable.ImmutableList
 
 enum class LayoutType {
@@ -373,27 +377,39 @@ fun BottomNavigationDivider(
 
 @OptIn(ExperimentalAnimationGraphicsApi::class)
 @Composable
-fun BottomNavigation(
+internal fun BottomNavigation(
     currentPosition: Int,
     onChangePosition: (position: Int) -> Unit,
     onReselected: (position: Int) -> Unit,
     navigationItems: ImmutableList<NavigationItem>,
-    themeColors: ExtendedColors = ExtendedTheme.colors
+    themeColors: ExtendedColors = ExtendedTheme.colors,
+    backdrop: GlassBackdrop? = null,
 ) {
-    val modifier = if (isHyperOs()) {
-        Modifier.background(themeColors.bottomBar)
-    } else {
-        Modifier
-    }
-    Column(modifier = modifier.navigationBarsPadding()) {
-        BottomNavigationDivider(themeColors)
+    Box(
+        modifier = Modifier
+            .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
         BottomNavigation(
-            backgroundColor = themeColors.bottomBar,
+            modifier = Modifier
+                .height(64.dp)
+                .floatingGlassSurface(backdrop, themeColors)
+                .padding(horizontal = 4.dp),
+            backgroundColor = Color.Transparent,
             elevation = 0.dp,
         ) {
             navigationItems.fastForEachIndexed { index, navigationItem ->
+                val selected = index == currentPosition
+                val indicatorColor by animateColorAsState(
+                    targetValue = themeColors.text.copy(alpha = if (selected) 0.10f else 0f),
+                    label = "navigationIndicator",
+                )
                 BottomNavigationItem(
-                    selected = index == currentPosition,
+                    modifier = Modifier
+                        .padding(horizontal = 2.dp, vertical = 5.dp)
+                        .clip(CircleShape)
+                        .background(indicatorColor),
+                    selected = selected,
                     onClick = {
                         if (index == currentPosition) {
                             onReselected(index)
@@ -407,9 +423,9 @@ fun BottomNavigation(
                             Icon(
                                 painter = rememberAnimatedVectorPainter(
                                     animatedImageVector = navigationItem.icon(),
-                                    atEnd = index == currentPosition
+                                    atEnd = selected
                                 ),
-                                contentDescription = navigationItem.title(index == currentPosition),
+                                contentDescription = null,
                                 modifier = Modifier.size(24.dp),
                             )
                             if (navigationItem.badge) {
@@ -430,9 +446,16 @@ fun BottomNavigation(
                             }
                         }
                     },
+                    label = {
+                        Text(
+                            text = navigationItem.title(selected),
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                        )
+                    },
                     selectedContentColor = MaterialTheme.colors.secondary,
-                    unselectedContentColor = themeColors.unselected,
-                    alwaysShowLabel = false
+                    unselectedContentColor = themeColors.text.copy(alpha = 0.86f),
+                    alwaysShowLabel = true,
                 )
             }
         }

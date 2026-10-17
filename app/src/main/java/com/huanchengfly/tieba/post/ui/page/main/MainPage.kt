@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -23,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import com.huanchengfly.tieba.post.LocalDevicePosture
 import com.huanchengfly.tieba.post.LocalNotificationCountFlow
@@ -46,6 +49,8 @@ import com.huanchengfly.tieba.post.ui.utils.MainNavigationContentPosition
 import com.huanchengfly.tieba.post.ui.utils.MainNavigationType
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoadHorizontalPager
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
+import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
+import com.huanchengfly.tieba.post.ui.widgets.compose.rememberGlassBackdrop
 import com.huanchengfly.tieba.post.utils.appPreferences
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.annotation.RootNavGraph
@@ -53,6 +58,9 @@ import com.ramcosta.composedestinations.navigation.DestinationsNavigator
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.launch
+
+// Applied inside each page's scrollable content, not to the pager's viewport.
+internal val LocalMainNavigationBottomPadding = compositionLocalOf { 0.dp }
 
 @Composable
 private fun NavigationWrapper(
@@ -243,6 +251,9 @@ fun MainPage(
             GlobalEvent.Refresh(navigationItems[it].id)
         )
     }
+    val backdrop = rememberGlassBackdrop(
+        enabled = navigationType == MainNavigationType.BOTTOM_NAVIGATION
+    )
     ProvideNavigator(navigator = navigator) {
         NavigationWrapper(
             currentPosition = pagerState.currentPage,
@@ -265,19 +276,25 @@ fun MainPage(
                             onReselected = onReselected,
                             navigationItems = navigationItems,
                             themeColors = themeColors,
+                            backdrop = backdrop,
                         )
                     }
                 }
             ) { paddingValues ->
                 LazyLoadHorizontalPager(
-                    contentPadding = paddingValues,
                     state = pagerState,
                     key = { navigationItems[it].id },
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .glassBackdropSource(backdrop, themeColors.background),
                     verticalAlignment = Alignment.Top,
                     userScrollEnabled = false
                 ) {
-                    navigationItems[it].content()
+                    CompositionLocalProvider(
+                        LocalMainNavigationBottomPadding provides paddingValues.calculateBottomPadding()
+                    ) {
+                        navigationItems[it].content()
+                    }
                 }
             }
         }
