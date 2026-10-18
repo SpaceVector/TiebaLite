@@ -27,6 +27,7 @@ import retrofit2.Response
 import kotlin.math.abs
 
 class NotifyJobService : JobService() {
+    private val requests = mutableMapOf<Int, Call<MsgBean>>()
     var notificationManager: NotificationManager? = null
     private fun createChannel(id: String, name: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -53,74 +54,97 @@ class NotifyJobService : JobService() {
                 createChannel(CHANNEL_AT, CHANNEL_AT_NAME)
             }
         }
-        TiebaApi.getInstance().msg().enqueue(object : Callback<MsgBean> {
-            override fun onFailure(call: Call<MsgBean>, t: Throwable) {
-                jobFinished(params, true)
-            }
-
-            override fun onResponse(call: Call<MsgBean>, response: Response<MsgBean>) {
-                val msgBean = response.body() ?: return
-                if (notificationManager != null) {
-                    var total = 0
-                    if ("0" != msgBean.message?.replyMe) {
-                        val replyCount = msgBean.message?.replyMe?.let { Integer.valueOf(it) }
-                        if (replyCount != null) {
-                            total += replyCount
-                        }
-                        sendBroadcast(
-                            Intent()
-                                .setAction(ACTION_NEW_MESSAGE)
-                                .putExtra("channel", CHANNEL_REPLY)
-                                .putExtra("count", replyCount)
-                        )
-                        updateNotification(
-                            getString(
-                                R.string.tips_message_reply,
-                                msgBean.message?.replyMe
-                            ),
-                            ID_REPLY,
-                            CHANNEL_REPLY,
-                            CHANNEL_REPLY_NAME,
-                            Intent(ACTION_VIEW, Uri.parse("tblite://notifications/0"))
-                        )
-                    }
-                    if ("0" != msgBean.message?.atMe) {
-                        val atCount = msgBean.message?.atMe?.let { Integer.valueOf(it) }
-                        if (atCount != null) {
-                            total += atCount
-                        }
-                        sendBroadcast(
-                            Intent()
-                                .setAction(ACTION_NEW_MESSAGE)
-                                .putExtra("channel", CHANNEL_AT)
-                                .putExtra("count", msgBean.message?.atMe)
-                        )
-                        updateNotification(
-                            getString(
-                                R.string.tips_message_at,
-                                msgBean.message?.atMe
-                            ),
-                            ID_AT,
-                            CHANNEL_AT,
-                            CHANNEL_AT_NAME,
-                            Intent(ACTION_VIEW, Uri.parse("tblite://notifications/1"))
-                        )
-                    }
-                    sendBroadcast(
-                        Intent()
-                            .setAction(ACTION_NEW_MESSAGE)
-                            .putExtra("channel", CHANNEL_TOTAL)
-                            .putExtra("count", total)
-                    )
-                }
-                jobFinished(params, false)
-            }
-        })
+        requestMessages(params, TiebaApi.getInstance().msg())
         return true
     }
 
+    internal fun requestMessages(params: JobParameters, request: Call<MsgBean>) {
+        requests.put(params.jobId, request)?.cancel()
+        request.enqueue(object : Callback<MsgBean> {
+            override fun onFailure(call: Call<MsgBean>, t: Throwable) {
+                finishRequest(params, call, !call.isCanceled)
+            }
+
+            override fun onResponse(call: Call<MsgBean>, response: Response<MsgBean>) {
+                if (requests[params.jobId] !== call) return
+                try {
+                    val msgBean = response.body() ?: return
+                    if (notificationManager != null) {
+                        var total = 0
+                        if ("0" != msgBean.message?.replyMe) {
+                            val replyCount = msgBean.message?.replyMe?.let { Integer.valueOf(it) }
+                            if (replyCount != null) {
+                                total += replyCount
+                            }
+                            sendBroadcast(
+                                Intent()
+                                    .setAction(ACTION_NEW_MESSAGE)
+                                    .putExtra("channel", CHANNEL_REPLY)
+                                    .putExtra("count", replyCount)
+                            )
+                            updateNotification(
+                                getString(
+                                    R.string.tips_message_reply,
+                                    msgBean.message?.replyMe
+                                ),
+                                ID_REPLY,
+                                CHANNEL_REPLY,
+                                CHANNEL_REPLY_NAME,
+                                Intent(ACTION_VIEW, Uri.parse("tblite://notifications/0"))
+                            )
+                        }
+                        if ("0" != msgBean.message?.atMe) {
+                            val atCount = msgBean.message?.atMe?.let { Integer.valueOf(it) }
+                            if (atCount != null) {
+                                total += atCount
+                            }
+                            sendBroadcast(
+                                Intent()
+                                    .setAction(ACTION_NEW_MESSAGE)
+                                    .putExtra("channel", CHANNEL_AT)
+                                    .putExtra("count", msgBean.message?.atMe)
+                            )
+                            updateNotification(
+                                getString(
+                                    R.string.tips_message_at,
+                                    msgBean.message?.atMe
+                                ),
+                                ID_AT,
+                                CHANNEL_AT,
+                                CHANNEL_AT_NAME,
+                                Intent(ACTION_VIEW, Uri.parse("tblite://notifications/1"))
+                            )
+                        }
+                        sendBroadcast(
+                            Intent()
+                                .setAction(ACTION_NEW_MESSAGE)
+                                .putExtra("channel", CHANNEL_TOTAL)
+                                .putExtra("count", total)
+                        )
+                    }
+                } finally {
+                    finishRequest(params, call, false)
+                }
+            }
+        })
+    }
+
     override fun onStopJob(params: JobParameters): Boolean {
+        requests.remove(params.jobId)?.cancel()
         return true
+    }
+
+    private fun finishRequest(params: JobParameters, request: Call<MsgBean>, retry: Boolean) {
+        if (requests[params.jobId] !== request) return
+        requests.remove(params.jobId)
+        jobFinished(params, retry)
+    }
+
+    override fun onDestroy() {
+        val pending = requests.values.toList()
+        requests.clear()
+        pending.forEach { it.cancel() }
+        super.onDestroy()
     }
 
     private fun updateNotification(

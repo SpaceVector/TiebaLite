@@ -150,11 +150,14 @@ fun EmoticonText(
     )
     val sizePx = calcLineHeightPx(mergedStyle)
     val spacingLineHeight =
-        remember(sizePx) { (sizePx + lineSpacing.value.spToPxFloat()).pxToSpFloat().sp }
+        remember(sizePx, lineSpacing) { (sizePx + lineSpacing.value.spToPxFloat()).pxToSpFloat().sp }
+    val emoticonString = remember(text) { text.emoticonString }
     val emoticonInlineContent =
-        remember(sizePx) { EmoticonManager.getEmoticonInlineContent(sizePx * emoticonSize) }
+        remember(emoticonString, sizePx, emoticonSize) {
+            EmoticonManager.getEmoticonInlineContent(sizePx * emoticonSize, emoticonString)
+        }
     IconText(
-        text.emoticonString,
+        emoticonString,
         modifier,
         color,
         fontSize,

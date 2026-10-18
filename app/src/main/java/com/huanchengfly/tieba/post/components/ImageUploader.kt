@@ -12,11 +12,12 @@ import com.huanchengfly.tieba.post.api.retrofit.body.buildMultipartBody
 import com.huanchengfly.tieba.post.api.retrofit.exception.TiebaException
 import com.huanchengfly.tieba.post.api.retrofit.exception.getErrorCode
 import com.huanchengfly.tieba.post.api.retrofit.exception.getErrorMessage
-import com.huanchengfly.tieba.post.utils.ImageUtil
 import com.huanchengfly.tieba.post.utils.MD5Util
 import com.huanchengfly.tieba.post.utils.appPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.catch
@@ -24,7 +25,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapConcat
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.withContext
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -63,22 +63,20 @@ class ImageUploader(
 
     private suspend fun compressImage(
         filePath: String,
-        isOriginImage: Boolean
-    ): File {
+        isOriginImage: Boolean,
+        tempFile: File,
+    ) {
         val originFile = File(filePath)
         val fileLength = originFile.length()
         val maxSize = if (isOriginImage) ORIGIN_IMAGE_MAX_SIZE else IMAGE_MAX_SIZE
-        val tempFile = withContext(Dispatchers.IO) {
-            File.createTempFile("temp", ".tmp")
-        }
-        withContext<Unit>(Dispatchers.IO) {
-            if (isOriginImage && fileLength <= maxSize) {
-                originFile.copyTo(tempFile, true)
-            } else {
-                val bitmap = BitmapFactory.decodeFile(filePath)
-                val firstCompressResult = ImageUtil.compressImage(bitmap, quality = 95)
-                tempFile.writeBytes(firstCompressResult)
-                if (firstCompressResult.size > maxSize) {
+        if (isOriginImage && fileLength <= maxSize) {
+            originFile.copyTo(tempFile, true)
+        } else {
+            var bitmap = checkNotNull(BitmapFactory.decodeFile(filePath)) { "图片解码失败" }
+            try {
+                writeJpeg(bitmap, tempFile)
+                currentCoroutineContext().ensureActive()
+                if (tempFile.length() > maxSize) {
                     // 压缩尺寸至 1080P
                     val width = bitmap.width
                     val height = bitmap.height
@@ -91,19 +89,36 @@ class ImageUploader(
                         val newWidth = (width * scale).toInt()
                         val newHeight = (height * scale).toInt()
                         val newBitmap = Bitmap.createScaledBitmap(bitmap, newWidth, newHeight, true)
-                        tempFile.writeBytes(ImageUtil.compressImage(newBitmap, quality = 95))
+                        bitmap.recycle()
+                        bitmap = newBitmap
+                        writeJpeg(bitmap, tempFile)
                     }
                 }
+            } finally {
+                bitmap.recycle()
             }
         }
-        return tempFile
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun writeJpeg(bitmap: Bitmap, file: File) {
+        file.outputStream().buffered().use {
+            check(bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it)) { "图片压缩失败" }
+        }
+    }
+
     suspend fun uploadSinglePicture(
         filePath: String,
         isOriginImage: Boolean = false,
-    ): UploadPictureResultBean {
+    ): UploadPictureResultBean = uploadSinglePicture(filePath, isOriginImage) {
+        RetrofitTiebaApi.OFFICIAL_TIEBA_API.uploadPicture(it)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    internal suspend fun uploadSinglePicture(
+        filePath: String,
+        isOriginImage: Boolean,
+        upload: (MyMultipartBody) -> Flow<UploadPictureResultBean>,
+    ): UploadPictureResultBean = withContext(Dispatchers.IO) {
         val option = BitmapFactory.Options().apply {
             inJustDecodeBounds = true
         }
@@ -111,62 +126,61 @@ class ImageUploader(
         val width = option.outWidth
         val height = option.outHeight
         check(width > 0 && height > 0) { "图片宽高不正确" }
-        val file = compressImage(filePath, isOriginImage)
-        val fileLength = file.length()
-        val maxSize = if (isOriginImage) ORIGIN_IMAGE_MAX_SIZE else IMAGE_MAX_SIZE
-        check(fileLength <= maxSize) { "图片大小超过限制" }
-        val fileMd5 = MD5Util.toMd5(file)
-        val isMultipleChunkSize = fileLength % chunkSize == 0L
-        val totalChunkNum = fileLength / chunkSize + if (isMultipleChunkSize) 0 else 1
-        val picWatermarkType =
-            App.INSTANCE.appPreferences.picWatermarkType ?: PIC_WATER_TYPE_FORUM_NAME
-        val requestBodies = (0 until totalChunkNum).map { chunk ->
-            val isFinish = chunk == totalChunkNum - 1
-            val curChunkSize = if (isFinish) {
-                if (isMultipleChunkSize) {
-                    chunkSize
+        val file = File.createTempFile("temp", ".tmp")
+        try {
+            compressImage(filePath, isOriginImage, file)
+            currentCoroutineContext().ensureActive()
+            val fileLength = file.length()
+            val maxSize = if (isOriginImage) ORIGIN_IMAGE_MAX_SIZE else IMAGE_MAX_SIZE
+            check(fileLength <= maxSize) { "图片大小超过限制" }
+            val fileMd5 = MD5Util.toMd5(file)
+            val isMultipleChunkSize = fileLength % chunkSize == 0L
+            val totalChunkNum = fileLength / chunkSize + if (isMultipleChunkSize) 0 else 1
+            val picWatermarkType =
+                App.INSTANCE.appPreferences.picWatermarkType ?: PIC_WATER_TYPE_FORUM_NAME
+            val requestBodies = (0 until totalChunkNum).asFlow().map { chunk ->
+                val isFinish = chunk == totalChunkNum - 1
+                val curChunkSize = if (isFinish) {
+                    if (isMultipleChunkSize) {
+                        chunkSize
+                    } else {
+                        fileLength % chunkSize
+                    }
                 } else {
-                    fileLength % chunkSize
-                }
-            } else {
-                chunkSize
-            }.toInt()
-            val chunkBytes = ByteArray(curChunkSize)
-            withContext(Dispatchers.IO) {
+                    chunkSize
+                }.toInt()
+                val chunkBytes = ByteArray(curChunkSize)
                 RandomAccessFile(file, "r").use {
                     it.seek(chunk * chunkSize.toLong())
-                    it.read(chunkBytes)
+                    it.readFully(chunkBytes)
+                }
+                buildMultipartBody(BOUNDARY) {
+                    setType(MyMultipartBody.FORM)
+                    addFormDataPart("alt", "json")
+                    addFormDataPart("chunkNo", "${chunk + 1}")
+                    if (forumName.isNotEmpty()) addFormDataPart("forum_name", forumName)
+                    addFormDataPart("groupId", "1")
+                    addFormDataPart("height", "$height")
+                    addFormDataPart("isFinish", isFinish.booleanToString())
+                    addFormDataPart("is_bjh", "0")
+                    addFormDataPart("pic_water_type", picWatermarkType)
+                    addFormDataPart("resourceId", "$fileMd5$chunkSize")
+                    addFormDataPart("saveOrigin", isOriginImage.booleanToString())
+                    addFormDataPart("size", "$fileLength")
+                    if (forumName.isNotEmpty()) addFormDataPart("small_flow_fname", forumName)
+                    addFormDataPart("width", "$width")
+                    addFormDataPart("chunk", "file", chunkBytes.toRequestBody())
                 }
             }
-            buildMultipartBody(BOUNDARY) {
-                setType(MyMultipartBody.FORM)
-                addFormDataPart("alt", "json")
-                addFormDataPart("chunkNo", "${chunk + 1}")
-                if (forumName.isNotEmpty()) addFormDataPart("forum_name", forumName)
-                addFormDataPart("groupId", "1")
-                addFormDataPart("height", "$height")
-                addFormDataPart("isFinish", isFinish.booleanToString())
-                addFormDataPart("is_bjh", "0")
-                addFormDataPart("pic_water_type", picWatermarkType)
-                addFormDataPart("resourceId", "$fileMd5$chunkSize")
-                addFormDataPart("saveOrigin", isOriginImage.booleanToString())
-                addFormDataPart("size", "$fileLength")
-                if (forumName.isNotEmpty()) addFormDataPart("small_flow_fname", forumName)
-                addFormDataPart("width", "$width")
-                addFormDataPart("chunk", "file", chunkBytes.toRequestBody())
-            }
+            requestBodies
+                .flatMapConcat { upload(it) }
+                .catch {
+                    throw UploadPictureFailedException(it.getErrorCode(), it.getErrorMessage())
+                }
+                .last()
+        } finally {
+            file.delete()
         }
-        return requestBodies.asFlow()
-            .flatMapConcat { RetrofitTiebaApi.OFFICIAL_TIEBA_API.uploadPicture(it) }
-            .catch {
-                throw UploadPictureFailedException(it.getErrorCode(), it.getErrorMessage())
-            }
-            .onCompletion {
-                withContext(Dispatchers.IO) {
-                    file.delete()
-                }
-            }
-            .last()
     }
 }
 

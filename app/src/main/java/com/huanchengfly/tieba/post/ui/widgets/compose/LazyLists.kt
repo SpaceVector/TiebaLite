@@ -22,12 +22,18 @@ import com.github.panpf.sketch.request.PauseLoadWhenScrollingDrawableDecodeInter
 import com.huanchengfly.tieba.post.arch.GlobalEvent
 import com.huanchengfly.tieba.post.arch.onGlobalEvent
 
+private var scrollingListCount = 0
+
 @Composable
 private fun PauseImageDecodeWhenScrolling(isScrollInProgress: Boolean) {
-    DisposableEffect(isScrollInProgress) {
-        PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = isScrollInProgress
-        onDispose {
-            PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = false
+    if (isScrollInProgress) {
+        DisposableEffect(Unit) {
+            scrollingListCount++
+            PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = true
+            onDispose {
+                scrollingListCount--
+                PauseLoadWhenScrollingDrawableDecodeInterceptor.scrolling = scrollingListCount > 0
+            }
         }
     }
 }

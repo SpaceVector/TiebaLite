@@ -49,7 +49,6 @@ val DefaultEmptyScreen: @Composable StateScreenScope.() -> Unit = {
             val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.lottie_empty_box))
             LottieAnimation(
                 composition = composition,
-                iterations = LottieConstants.IterateForever,
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(2f)

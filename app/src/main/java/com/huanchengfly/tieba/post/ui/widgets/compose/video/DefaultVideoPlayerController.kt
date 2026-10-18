@@ -224,7 +224,8 @@ internal class DefaultVideoPlayerController(
     }
 
     override fun pause() {
-        exoPlayer.playWhenReady = false
+        stopLongPressSpeedPlay()
+        _exoPlayer?.pause()
     }
 
     override fun togglePlaying() {

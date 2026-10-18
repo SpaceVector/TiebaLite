@@ -22,7 +22,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.retrofit.exception.NoConnectivityException
@@ -185,7 +184,6 @@ fun ErrorTipScreen(
                     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.lottie_error))
                     LottieAnimation(
                         composition = composition,
-                        iterations = LottieConstants.IterateForever,
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(2f)
@@ -196,7 +194,6 @@ fun ErrorTipScreen(
                     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.lottie_bug_hunting))
                     LottieAnimation(
                         composition = composition,
-                        iterations = LottieConstants.IterateForever,
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(2f)

@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.api.models.protos.PostInfoList
@@ -174,7 +173,6 @@ fun UserPostPage(
                             )
                             LottieAnimation(
                                 composition = composition,
-                                iterations = LottieConstants.IterateForever,
                                 modifier = Modifier
                                     .padding(vertical = 16.dp)
                                     .fillMaxWidth()
@@ -194,7 +192,6 @@ fun UserPostPage(
                             )
                             LottieAnimation(
                                 composition = composition,
-                                iterations = LottieConstants.IterateForever,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .aspectRatio(2f)

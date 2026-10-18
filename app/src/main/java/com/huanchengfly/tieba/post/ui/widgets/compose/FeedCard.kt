@@ -800,12 +800,13 @@ fun FeedCard(
             }
         },
         content = {
+            val threadAbstract = remember(item.get { richAbstract }) { item.get { abstractText } }
             ThreadContent(
                 title = item.get { title },
-                abstractText = item.get { abstractText },
+                abstractText = threadAbstract,
                 tabName = item.get { tabName },
                 showTitle = item.get { isNoTitle != 1 && title.isNotBlank() },
-                showAbstract = item.get { abstractText.isNotBlank() },
+                showAbstract = threadAbstract.isNotBlank(),
                 isGood = item.get { isGood == 1 },
             )
 
@@ -887,11 +888,12 @@ fun FeedCard(
             )
         },
         content = {
+            val threadAbstract = remember(item.get { rich_abstract }) { item.get { abstractText } }
             ThreadContent(
                 title = item.get { title },
-                abstractText = item.get { abstractText },
+                abstractText = threadAbstract,
                 showTitle = item.get { is_ntitle != 1 && title.isNotBlank() },
-                showAbstract = item.get { abstractText.isNotBlank() },
+                showAbstract = threadAbstract.isNotBlank(),
             )
 
             ThreadMedia(

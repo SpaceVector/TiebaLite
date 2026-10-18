@@ -14,7 +14,7 @@ import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.arch.wrapImmutable
 import com.huanchengfly.tieba.post.ui.common.PbContentRender
 import com.huanchengfly.tieba.post.ui.common.PicContentRender
-import com.huanchengfly.tieba.post.ui.common.TextContentRender.Companion.appendText
+import com.huanchengfly.tieba.post.ui.common.TextContentRender
 import com.huanchengfly.tieba.post.ui.common.VideoContentRender
 import com.huanchengfly.tieba.post.ui.common.VoiceContentRender
 import com.huanchengfly.tieba.post.ui.common.theme.utils.ThemeUtils
@@ -222,11 +222,20 @@ val List<PbContent>.plainText: String
 val List<PbContent>.renders: ImmutableList<PbContentRender>
     get() {
         val renders = mutableListOf<PbContentRender>()
+        var pendingText: AnnotatedString.Builder? = null
+
+        fun textBuilder(): AnnotatedString.Builder =
+            pendingText ?: AnnotatedString.Builder().also { pendingText = it }
+
+        fun flushText() {
+            pendingText?.let { renders.add(TextContentRender(it.toAnnotatedString())) }
+            pendingText = null
+        }
 
         forEach {
             when (it.type) {
                 0, 9, 27 -> {
-                    renders.appendText(it.text)
+                    textBuilder().append(it.text)
                 }
 
                 1 -> {
@@ -247,7 +256,7 @@ val List<PbContent>.renders: ImmutableList<PbContentRender>
                             }
                         }
                     }
-                    renders.appendText(text)
+                    textBuilder().append(text)
                 }
 
                 2 -> {
@@ -256,12 +265,13 @@ val List<PbContent>.renders: ImmutableList<PbContentRender>
                         it.c
                     )
                     val emoticonText = "#(${it.c})".emoticonString
-                    renders.appendText(emoticonText)
+                    textBuilder().append(emoticonText)
                 }
 
                 3 -> {
                     val width = it.bsize.split(",")[0].toInt()
                     val height = it.bsize.split(",")[1].toInt()
+                    flushText()
                     renders.add(
                         PicContentRender(
                             picUrl = it.picUrl,
@@ -292,13 +302,14 @@ val List<PbContent>.renders: ImmutableList<PbContentRender>
                             }
                         }
                     }
-                    renders.appendText(text)
+                    textBuilder().append(text)
                 }
 
                 5 -> {
                     if (it.src.isNotBlank()) {
                         val width = it.bsize.split(",")[0].toInt()
                         val height = it.bsize.split(",")[1].toInt()
+                        flushText()
                         renders.add(
                             VideoContentRender(
                                 videoUrl = it.link,
@@ -327,17 +338,19 @@ val List<PbContent>.renders: ImmutableList<PbContentRender>
                                 }
                             }
                         }
-                        renders.appendText(text)
+                        textBuilder().append(text)
                     }
                 }
 
                 10 -> {
+                    flushText()
                     renders.add(VoiceContentRender(it.voiceMD5, it.duringTime))
                 }
 
                 20 -> {
                     val width = it.bsize.split(",")[0].toInt()
                     val height = it.bsize.split(",")[1].toInt()
+                    flushText()
                     renders.add(
                         PicContentRender(
                             picUrl = it.src,
@@ -353,6 +366,7 @@ val List<PbContent>.renders: ImmutableList<PbContentRender>
             }
         }
 
+        flushText()
         return renders.toImmutableList()
     }
 

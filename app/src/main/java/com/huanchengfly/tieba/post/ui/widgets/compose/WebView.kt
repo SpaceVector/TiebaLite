@@ -230,8 +230,17 @@ fun WebView(
             }.also { state.webView = it }
         },
         modifier = modifier,
-        onRelease = {
-            onDispose(it)
+        onRelease = { view ->
+            try {
+                onDispose(view)
+            } finally {
+                if (state.webView === view) {
+                    state.viewState = Bundle().apply { view.saveState(this) }
+                    state.webView = null
+                }
+                view.stopLoading()
+                view.destroy()
+            }
         }
     )
 }
@@ -740,7 +749,8 @@ val WebStateSaver: Saver<WebViewState, Any> = run {
 
     mapSaver(
         save = {
-            val viewState = Bundle().apply { it.webView?.saveState(this) }
+            val viewState = it.webView?.let { view -> Bundle().apply { view.saveState(this) } }
+                ?: it.viewState ?: Bundle()
             mapOf(
                 pageTitleKey to it.pageTitle,
                 lastLoadedUrlKey to it.lastLoadedUrl,

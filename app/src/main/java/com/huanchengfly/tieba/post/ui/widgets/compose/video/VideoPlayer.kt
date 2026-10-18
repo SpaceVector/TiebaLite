@@ -26,6 +26,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
@@ -41,9 +42,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.github.panpf.sketch.compose.AsyncImage
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.ui.widgets.compose.video.util.getDurationString
@@ -105,6 +109,15 @@ fun VideoPlayer(
 ) {
     require(videoPlayerController is DefaultVideoPlayerController) {
         "Use [rememberVideoPlayerController] to create an instance of [VideoPlayerController]"
+    }
+
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, videoPlayerController) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) videoPlayerController.pause()
+        }
+        lifecycle.addObserver(observer)
+        onDispose { lifecycle.removeObserver(observer) }
     }
 
     SideEffect {

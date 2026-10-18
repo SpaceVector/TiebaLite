@@ -23,6 +23,7 @@ object EmoticonUtil {
 
     @RegExp
     private val REGEX = "#\\((([一-龥\\w~])+)\\)"
+    private val emoticonPattern = Pattern.compile(REGEX)
     private val EMPTY_MAP: Map<String, Int> = emptyMap()
     private val EMOTICON_ALL_WEB_MAP: MutableMap<String, Int> = mutableMapOf()
     private val EMOTICON_CLASSIC_WEB_MAP: MutableMap<String, Int> = mutableMapOf()
@@ -119,8 +120,7 @@ object EmoticonUtil {
     @OptIn(ExperimentalTextApi::class)
     val String.emoticonString: AnnotatedString
         get() {
-            val regexPattern = Pattern.compile(getRegex(EMOTICON_ALL_TYPE))
-            val matcher = regexPattern.matcher(this)
+            val matcher = emoticonPattern.matcher(this)
             return buildAnnotatedString {
                 withAnnotation("Emoticon", "true") {
                     append(this@emoticonString)
@@ -147,8 +147,7 @@ object EmoticonUtil {
             if (hasStringAnnotations("Emoticon", 0, length)) {
                 return this
             }
-            val regexPattern = Pattern.compile(getRegex(EMOTICON_ALL_TYPE))
-            val matcher = regexPattern.matcher(this.text)
+            val matcher = emoticonPattern.matcher(this.text)
             return buildAnnotatedString {
                 withAnnotation("Emoticon", "true") {
                     append(this@emoticonString)
