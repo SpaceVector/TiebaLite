@@ -8,6 +8,11 @@ if [[ "${GITHUB_REF:-}" != "refs/heads/4.0-dev" || "${GITHUB_EVENT_NAME:-}" == "
     exit 0
 fi
 
+if [[ "${SIGNING_CONFIGURED:-false}" != "true" ]]; then
+    echo "::error::Publishing requires the verified fixed Release signing key."
+    exit 1
+fi
+
 tag="v${VERSION_NAME}"
 git check-ref-format "refs/tags/$tag"
 
@@ -61,9 +66,6 @@ trap 'rm -f "$notes"' EXIT
 {
     printf '## 构建信息\n\n- 版本：`%s`（`%s`）\n- 源码：[%s](%s/commit/%s)\n' \
         "$VERSION_NAME" "$VERSION_CODE" "${GITHUB_SHA:0:7}" "$repo_url" "$GITHUB_SHA"
-    if [[ "${SIGNING_CONFIGURED:-false}" != "true" ]]; then
-        printf '\n> **签名提醒：** 未配置正式签名，本 APK 使用 debug 签名，可能无法覆盖已安装的其他签名版本；不同构建的 debug 签名也可能不同。\n'
-    fi
     printf '\n## 更新日志\n\n'
     git log --no-merges --max-count=100 --format='- %s (%h)' "$range"
     printf '\n[完整更新记录](%s)（上方最多展示 100 条非合并提交）\n' "$changelog_url"

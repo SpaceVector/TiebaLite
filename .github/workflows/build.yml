@@ -37,12 +37,19 @@ jobs:
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASEKEYPASSWORD }}
         run: |
           if [ -z "$RELEASE_KEYSTORE" ] || [ -z "$RELEASE_KEY_ALIAS" ] || [ -z "$KEYSTORE_B64" ] || [ -z "$RELEASE_STORE_PASSWORD" ] || [ -z "$RELEASE_KEY_PASSWORD" ]; then
-            echo "::warning::Release signing is not configured; the release APK will use the debug signing key."
             echo "configured=false" >> "$GITHUB_OUTPUT"
+            if [ "$GITHUB_REF" = "refs/heads/4.0-dev" ]; then
+              echo "::error::The fixed Release keystore must be configured before building a release. Refusing to generate a temporary signing key."
+              exit 1
+            fi
+            echo "Signing is not configured; this non-publishing build will produce an unsigned release APK."
             exit 0
           fi
 
+          umask 077
+          mkdir -p "$(dirname "$RELEASE_KEYSTORE")"
           echo "$KEYSTORE_B64" | base64 --decode > "$RELEASE_KEYSTORE"
+          python3 .github/verify_signing.py keystore "$RELEASE_KEYSTORE"
           echo keystore.file="$RELEASE_KEYSTORE" >> keystore.properties
           echo keystore.password="$RELEASE_STORE_PASSWORD" >> keystore.properties
           echo keystore.key.alias="$RELEASE_KEY_ALIAS" >> keystore.properties
@@ -56,10 +63,14 @@ jobs:
           cache-read-only: ${{ github.ref != 'refs/heads/master' && github.ref != 'refs/heads/4.0-dev' }}
 
       - name: Test release automation
-        run: python3 .github/test_publish_release.py
+        run: python3 -m unittest discover -s .github -p 'test_*.py' -v
 
       - name: Build with Gradle
         run: ./gradlew assembleRelease
+
+      - name: Verify APK signing certificate
+        if: steps.signing.outputs.configured == 'true'
+        run: python3 .github/verify_signing.py apk "$ANDROID_HOME/build-tools/35.0.0/apksigner" app/build/outputs/apk/release/*.apk
 
       - name: Read Output Metadata
         id: read_output_metadata
@@ -136,7 +147,8 @@ jobs:
     needs: build
     if: >-
       github.event_name != 'pull_request' &&
-      github.ref == 'refs/heads/4.0-dev'
+      github.ref == 'refs/heads/4.0-dev' &&
+      needs.build.outputs.signing_configured == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write

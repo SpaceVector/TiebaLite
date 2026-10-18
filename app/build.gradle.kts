@@ -56,7 +56,7 @@ android {
     signingConfigs {
         if (property.keystore.file.isNotBlank()) {
             create("config") {
-                storeFile = file(File(rootDir, property.keystore.file))
+                storeFile = rootProject.file(property.keystore.file)
                 storePassword = property.keystore.password
                 keyAlias = property.keystore.key.alias
                 keyPassword = property.keystore.key.password
@@ -68,18 +68,14 @@ android {
         }
     }
     buildTypes {
-        all {
-            signingConfig =
-                if (signingConfigs.any { it.name == "config" })
-                    signingConfigs.getByName("config")
-                else signingConfigs.getByName("debug")
-        }
         debug {
             // Keep development installs and instrumentation data separate from the daily app.
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
         }
         release {
+            // Never generate or fall back to a different debug key for release APKs.
+            signingConfig = signingConfigs.findByName("config")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

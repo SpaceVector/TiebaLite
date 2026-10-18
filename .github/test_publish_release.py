@@ -131,11 +131,13 @@ class PublishReleaseTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--prerelease=false", self.calls()[-1])
 
-    def test_missing_signing_is_visible_in_release_notes(self):
-        result = self.publish(SIGNING_CONFIGURED="false")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("签名提醒", self.notes())
-        self.assertIn("debug", self.notes())
+    def test_missing_signing_prevents_publication(self):
+        for configured in ("false", ""):
+            with self.subTest(configured=configured):
+                result = self.publish(SIGNING_CONFIGURED=configured)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertEqual(self.calls(), [])
+                self.assertFalse((self.root / "captured-notes.md").exists())
 
     def test_rerun_does_not_modify_published_release(self):
         result = self.publish(EXISTING_DRAFT="false")
