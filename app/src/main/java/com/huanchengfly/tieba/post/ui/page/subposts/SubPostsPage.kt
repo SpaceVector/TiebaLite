@@ -1,7 +1,5 @@
 package com.huanchengfly.tieba.post.ui.page.subposts
 
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -65,6 +64,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.BlockTip
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockableContent
 import com.huanchengfly.tieba.post.ui.widgets.compose.Card
 import com.huanchengfly.tieba.post.ui.widgets.compose.ConfirmDialog
+import com.huanchengfly.tieba.post.ui.widgets.compose.ContentCardTopBar
 import com.huanchengfly.tieba.post.ui.widgets.compose.FloatingReplyBar
 import com.huanchengfly.tieba.post.ui.widgets.compose.LocalFloatingSheetBackdrop
 import com.huanchengfly.tieba.post.ui.widgets.compose.floatingSheetSurface
@@ -78,9 +78,10 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
-import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberMenuState
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.AccountUtil.LocalAccount
 import com.huanchengfly.tieba.post.utils.DateTimeUtils
@@ -145,7 +146,6 @@ fun SubPostsSheetPage(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun SubPostsContent(
     viewModel: SubPostsViewModel,
@@ -311,7 +311,7 @@ internal fun SubPostsContent(
     ) {
         MyScaffold(
             modifier = Modifier.fillMaxSize(),
-            backgroundColor = if (isSheet) Color.Transparent else colors.background,
+            backgroundColor = if (isSheet) Color.Transparent else colors.contentPageBackground,
             contentColor = colors.text,
             topBar = {
                 if (isSheet) {
@@ -332,42 +332,45 @@ internal fun SubPostsContent(
                         }
                     }
                 } else {
-                    TitleCentredToolbar(
-                        title = {
-                            Text(text = post?.let {
-                                stringResource(
-                                    id = R.string.title_sub_posts,
-                                    it.get { floor })
-                            } ?: stringResource(id = R.string.title_sub_posts_default),
-                                fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6)
-                        },
-                        navigationIcon = {
-                            IconButton(onClick = onNavigateUp) {
-                                Icon(
-                                    imageVector = if (isSheet) Icons.Rounded.Close else Icons.AutoMirrored.Rounded.ArrowBack,
-                                    contentDescription = stringResource(id = R.string.btn_close)
-                                )
-                            }
-                        },
-                        actions = {
-                            if (!isSheet) {
-                                IconButton(onClick = {
-                                    navigator.navigate(
-                                        ThreadPageDestination(
-                                            forumId = forumId,
-                                            threadId = threadId,
-                                            postId = postId
-                                        )
-                                    )
-                                }) {
+                    ContentCardTopBar {
+                        TitleCentredToolbar(
+                            insets = false,
+                            title = {
+                                Text(text = post?.let {
+                                    stringResource(
+                                        id = R.string.title_sub_posts,
+                                        it.get { floor })
+                                } ?: stringResource(id = R.string.title_sub_posts_default),
+                                    fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6)
+                            },
+                            navigationIcon = {
+                                IconButton(onClick = onNavigateUp) {
                                     Icon(
-                                        imageVector = Icons.Rounded.OpenInBrowser,
-                                        contentDescription = stringResource(id = R.string.btn_open_origin_thread)
+                                        imageVector = if (isSheet) Icons.Rounded.Close else Icons.AutoMirrored.Rounded.ArrowBack,
+                                        contentDescription = stringResource(id = R.string.btn_close)
                                     )
                                 }
+                            },
+                            actions = {
+                                if (!isSheet) {
+                                    IconButton(onClick = {
+                                        navigator.navigate(
+                                            ThreadPageDestination(
+                                                forumId = forumId,
+                                                threadId = threadId,
+                                                postId = postId
+                                            )
+                                        )
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.OpenInBrowser,
+                                            contentDescription = stringResource(id = R.string.btn_open_origin_thread)
+                                        )
+                                    }
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             },
             bottomBar = {
@@ -397,7 +400,7 @@ internal fun SubPostsContent(
             LoadMoreLayout(
                 modifier = Modifier
                     .padding(top = paddingValues.calculateTopPadding())
-                    .glassBackdropSource(backdrop, if (isSheet) Color.Transparent else colors.background),
+                    .glassBackdropSource(backdrop, if (isSheet) Color.Transparent else colors.contentPageBackground),
                 isLoading = isLoading,
                 onLoadMore = {
                     viewModel.send(
@@ -463,23 +466,26 @@ internal fun SubPostsContent(
                                     deleteSubPost = null
                                     confirmDeleteDialogState.show()
                                 }
-                                VerticalDivider(thickness = 2.dp)
+                                Spacer(Modifier.height(8.dp))
                             }
                         }
                     }
-                    stickyHeader(key = "SubPostsHeader") {
+                    item(key = "SubPostsHeader") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(colors.background.copy(alpha = if (isSheet) 0.55f else 1f))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .contentCard()
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = stringResource(
                                     id = R.string.title_sub_posts_header,
                                     totalCount
                                 ),
-                                style = MaterialTheme.typography.subtitle1
+                                style = MaterialTheme.typography.subtitle2,
+                                fontWeight = FontWeight.Medium,
+                                color = colors.text,
                             )
                         }
                     }
@@ -605,9 +611,14 @@ private fun SubPostItem(
         blockedTip = { BlockTip(text = { Text(text = stringResource(id = R.string.tip_blocked_sub_post)) }) },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .contentCard(),
     ) {
         LongClickMenu(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .contentCard(),
             menuState = menuState,
             indication = null,
             menuContent = {

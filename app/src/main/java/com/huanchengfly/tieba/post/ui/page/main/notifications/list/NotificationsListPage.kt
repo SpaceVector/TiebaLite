@@ -42,9 +42,12 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Container
 import com.huanchengfly.tieba.post.ui.widgets.compose.EmoticonText
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalContentCardTopPadding
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
 import com.huanchengfly.tieba.post.utils.DateTimeUtils
 import com.huanchengfly.tieba.post.utils.StringUtil
 import kotlinx.collections.immutable.persistentListOf
@@ -100,7 +103,7 @@ fun NotificationsListPage(
         ) {
             MyLazyColumn(
                 contentPadding = PaddingValues(
-                    top = 4.dp,
+                    top = 4.dp + LocalContentCardTopPadding.current,
                     bottom = 4.dp + LocalMainNavigationBottomPadding.current,
                 ),
                 state = lazyListState,
@@ -120,10 +123,16 @@ fun NotificationsListPage(
                                 }
                             },
                             modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .contentCard()
                                 .padding(horizontal = 16.dp, vertical = 12.dp)
                         ) {
                             Column(
                                 modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    .contentCard()
                                     .clickable {
                                         if (info.isFloor == "1") {
                                             navigator.navigate(
@@ -191,7 +200,7 @@ fun NotificationsListPage(
                                         text = quoteText,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(6.dp))
+                                            .clip(RoundedCornerShape(14.dp))
                                             .clickable {
                                                 if ("1" == info.isFloor && info.quotePid != null) {
                                                     navigator.navigate(
@@ -209,12 +218,9 @@ fun NotificationsListPage(
                                                     )
                                                 }
                                             }
-                                            .background(
-                                                ExtendedTheme.colors.chip,
-                                                RoundedCornerShape(6.dp)
-                                            )
-                                            .padding(8.dp),
-                                        color = ExtendedTheme.colors.onChip,
+                                            .background(ExtendedTheme.colors.contentInsetBackground)
+                                            .padding(12.dp),
+                                        color = ExtendedTheme.colors.textSecondary,
                                         fontSize = 12.sp,
                                     )
                                 }
@@ -228,7 +234,7 @@ fun NotificationsListPage(
         PullRefreshIndicator(
             refreshing = isRefreshing,
             state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = LocalContentCardTopPadding.current),
             backgroundColor = ExtendedTheme.colors.pullRefreshIndicator,
             contentColor = ExtendedTheme.colors.primary,
         )

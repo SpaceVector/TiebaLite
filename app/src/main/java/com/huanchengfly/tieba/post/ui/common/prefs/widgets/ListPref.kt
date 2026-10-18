@@ -1,11 +1,14 @@
 package com.huanchengfly.tieba.post.ui.common.prefs.widgets
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -13,9 +16,12 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.ui.common.prefs.LocalPrefsDataStore
+import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
 import com.huanchengfly.tieba.post.ui.widgets.compose.Dialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.DialogNegativeButton
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.picker.ListSinglePicker
+import com.huanchengfly.tieba.post.ui.widgets.compose.picker.PickerDefaults
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.collections.immutable.toImmutableMap
@@ -99,6 +105,7 @@ fun ListPref(
 
     Dialog(
         dialogState = dialogState,
+        useCardSurface = true,
         title = { Text(text = title) },
         buttons = {
             DialogNegativeButton(text = stringResource(id = R.string.button_cancel))
@@ -113,6 +120,11 @@ fun ListPref(
                 dismiss()
             },
             modifier = Modifier.padding(bottom = 16.dp),
+            itemModifier = Modifier
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(ExtendedTheme.colors.contentInsetBackground),
+            colors = PickerDefaults.pickerColors(selectedItemColor = ExtendedTheme.colors.text),
             itemIcons = icons.toImmutableMap()
         )
     }

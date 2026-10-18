@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -19,12 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.Icon
@@ -52,6 +50,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -90,6 +89,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.Button
 import com.huanchengfly.tieba.post.ui.widgets.compose.Chip
 import com.huanchengfly.tieba.post.ui.widgets.compose.ClickMenu
+import com.huanchengfly.tieba.post.ui.widgets.compose.ContentCardTopBar
 import com.huanchengfly.tieba.post.ui.widgets.compose.ErrorScreen
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoadHorizontalPager
@@ -101,6 +101,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.ScrollableTabRow
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.Toolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.AccountUtil.LocalAccount
 import com.huanchengfly.tieba.post.utils.BlockManager
@@ -161,7 +164,7 @@ fun UserProfilePage(
 
     ProvideNavigator(navigator = navigator) {
         StateScreen(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().background(ExtendedTheme.colors.contentPageBackground),
             isEmpty = isEmpty,
             isError = isError,
             isLoading = isRefreshing,
@@ -243,71 +246,74 @@ private fun UserProfileToolbar(
 ) {
     val context = LocalContext.current
 
-    Toolbar(
-        title = {
-            AnimatedVisibility(
-                visible = showTitle,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                ToolbarUserTitle(user = user)
-            }
-        },
-        navigationIcon = {
-            BackNavigationIcon(onBackPressed = onBack)
-        },
-        actions = {
-            user.takeUnless { isSelf }?.let {
-                ClickMenu(
-                    menuContent = {
-                        DropdownMenuItem(
-                            onClick = {
-                                BlockManager.addBlockAsync(
-                                    Block(
-                                        category = Block.CATEGORY_BLACK_LIST,
-                                        type = Block.TYPE_USER,
-                                        username = it.get { name },
-                                        uid = it.get { id }.toString()
-                                    )
-                                ) {
-                                    if (it) context.toastShort(R.string.toast_add_success)
-                                }
-                            }
-                        ) {
-                            Text(text = stringResource(id = R.string.menu_add_user_to_black_list))
-                        }
-                        DropdownMenuItem(
-                            onClick = {
-                                BlockManager.addBlockAsync(
-                                    Block(
-                                        category = Block.CATEGORY_WHITE_LIST,
-                                        type = Block.TYPE_USER,
-                                        username = it.get { name },
-                                        uid = it.get { id }.toString()
-                                    )
-                                ) {
-                                    if (it) context.toastShort(R.string.toast_add_success)
-                                }
-                            }
-                        ) {
-                            Text(text = stringResource(id = R.string.menu_add_user_to_white_list))
-                        }
-                    },
-                    triggerShape = CircleShape
+    ContentCardTopBar {
+        Toolbar(
+            insets = false,
+            title = {
+                AnimatedVisibility(
+                    visible = showTitle,
+                    enter = fadeIn(),
+                    exit = fadeOut()
                 ) {
-                    Box(
-                        modifier = Modifier.size(48.dp),
-                        contentAlignment = Alignment.Center
+                    ToolbarUserTitle(user = user)
+                }
+            },
+            navigationIcon = {
+                BackNavigationIcon(onBackPressed = onBack)
+            },
+            actions = {
+                user.takeUnless { isSelf }?.let {
+                    ClickMenu(
+                        menuContent = {
+                            DropdownMenuItem(
+                                onClick = {
+                                    BlockManager.addBlockAsync(
+                                        Block(
+                                            category = Block.CATEGORY_BLACK_LIST,
+                                            type = Block.TYPE_USER,
+                                            username = it.get { name },
+                                            uid = it.get { id }.toString()
+                                        )
+                                    ) {
+                                        if (it) context.toastShort(R.string.toast_add_success)
+                                    }
+                                }
+                            ) {
+                                Text(text = stringResource(id = R.string.menu_add_user_to_black_list))
+                            }
+                            DropdownMenuItem(
+                                onClick = {
+                                    BlockManager.addBlockAsync(
+                                        Block(
+                                            category = Block.CATEGORY_WHITE_LIST,
+                                            type = Block.TYPE_USER,
+                                            username = it.get { name },
+                                            uid = it.get { id }.toString()
+                                        )
+                                    ) {
+                                        if (it) context.toastShort(R.string.toast_add_success)
+                                    }
+                                }
+                            ) {
+                                Text(text = stringResource(id = R.string.menu_add_user_to_white_list))
+                            }
+                        },
+                        triggerShape = CircleShape
                     ) {
-                        Icon(
-                            imageVector = Icons.Rounded.NoAccounts,
-                            contentDescription = stringResource(id = R.string.btn_block)
-                        )
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.NoAccounts,
+                                contentDescription = stringResource(id = R.string.btn_block)
+                            )
+                        }
                     }
                 }
-            }
-        },
-    )
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -342,6 +348,8 @@ private fun UserProfileContentNormal(
     }
 
     MyScaffold(
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
+        contentColor = ExtendedTheme.colors.text,
         topBar = {
             UserProfileToolbar(
                 user = user,
@@ -489,8 +497,7 @@ private fun UserProfileContentNormal(
                             UserProfileDetail(
                                 user = user,
                                 modifier = Modifier
-                                    .padding(16.dp)
-                                    .padding(top = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 4.dp),
                                 showBtn = showActionBtn,
                                 isSelf = isSelf,
                                 onBtnClick = {
@@ -519,7 +526,6 @@ private fun UserProfileContentNormal(
                         user = user,
                         pages = pages,
                         pagerState = pagerState,
-//                                    modifier = Modifier.padding(horizontal = 16.dp)
                     )
 
                     LazyLoadHorizontalPager(
@@ -550,6 +556,8 @@ private fun UserProfileContentExpanded(
     val context = LocalContext.current
 
     MyScaffold(
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
+        contentColor = ExtendedTheme.colors.text,
         topBar = {
             UserProfileToolbar(
                 user = user,
@@ -631,7 +639,8 @@ private fun UserProfileContentExpanded(
                         user = user,
                         modifier = Modifier
                             .weight(1f)
-                            .align(Alignment.Top),
+                            .align(Alignment.Top)
+                            .padding(top = 4.dp),
                         showBtn = showActionBtn,
                         isSelf = isSelf,
                         onBtnClick = {
@@ -712,7 +721,10 @@ private fun UserProfileTabRow(
         backgroundColor = Color.Transparent,
         contentColor = ExtendedTheme.colors.primary,
         edgePadding = 0.dp,
-        modifier = modifier.wrapContentWidth(align = Alignment.Start),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp)
+            .contentCard(),
     ) {
         pages.fastForEachIndexed { i, pageData ->
             Tab(
@@ -722,7 +734,7 @@ private fun UserProfileTabRow(
                         pagerState.animateScrollToPage(i)
                     }
                 },
-                selectedContentColor = ExtendedTheme.colors.primary,
+                selectedContentColor = ExtendedTheme.colors.text,
                 unselectedContentColor = ExtendedTheme.colors.textSecondary,
             ) {
                 Row(
@@ -776,7 +788,7 @@ private fun UserProfileDetail(
     onCopyIdClick: () -> Unit = {},
 ) {
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth().contentCard().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(
@@ -834,10 +846,14 @@ private fun UserProfileDetail(
             fontWeight = FontWeight.Bold
         )
         ProvideTextStyle(value = MaterialTheme.typography.body2) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.height(IntrinsicSize.Min)
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(ExtendedTheme.colors.contentInsetBackground)
+                    .padding(12.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -853,7 +869,6 @@ private fun UserProfileDetail(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                HorizontalDivider(modifier = Modifier.fillMaxHeight())
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -868,7 +883,6 @@ private fun UserProfileDetail(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                HorizontalDivider(modifier = Modifier.fillMaxHeight())
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -889,6 +903,7 @@ private fun UserProfileDetail(
             text = user.get { intro }.takeIf { it.isNotEmpty() }
                 ?: stringResource(id = R.string.tip_no_intro),
             style = MaterialTheme.typography.body2,
+            color = ExtendedTheme.colors.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -968,14 +983,4 @@ private fun UserProfileDetail(
             )
         }
     }
-}
-
-@Composable
-private fun HorizontalDivider(modifier: Modifier = Modifier) {
-    Box(
-        modifier = Modifier
-            .background(ExtendedTheme.colors.divider)
-            .width(1.dp)
-            .then(modifier)
-    )
 }

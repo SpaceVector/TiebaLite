@@ -4,7 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -55,6 +60,7 @@ import com.huanchengfly.tieba.post.ui.page.thread.ThreadPageFromStoreExtra
 import com.huanchengfly.tieba.post.ui.page.thread.ThreadSortType
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
+import com.huanchengfly.tieba.post.ui.widgets.compose.ContentCardTopBar
 import com.huanchengfly.tieba.post.ui.widgets.compose.ErrorScreen
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
@@ -64,6 +70,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.StringUtil
 import com.huanchengfly.tieba.post.utils.StringUtil.getUsernameAnnotatedString
@@ -129,20 +138,24 @@ fun ThreadStorePage(
         scaffoldState.snackbarHostState.showSnackbar(context.getString(R.string.delete_store_success))
     }
     MyScaffold(
-        backgroundColor = Color.Transparent,
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
+        contentColor = ExtendedTheme.colors.text,
         scaffoldState = scaffoldState,
         topBar = {
-            TitleCentredToolbar(
-                title = {
-                    Text(
-                        text = stringResource(id = R.string.title_my_collect),
-                        fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6
-                    )
-                },
-                navigationIcon = {
-                    BackNavigationIcon(onBackPressed = { navigator.navigateUp() })
-                }
-            )
+            ContentCardTopBar {
+                TitleCentredToolbar(
+                    insets = false,
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.title_my_collect),
+                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6
+                        )
+                    },
+                    navigationIcon = {
+                        BackNavigationIcon(onBackPressed = { navigator.navigateUp() })
+                    }
+                )
+            }
         }
     ) { contentPaddings ->
         StateScreen(
@@ -176,7 +189,13 @@ fun ThreadStorePage(
                     loadEnd = !hasMore,
                     lazyListState = lazyListState
                 ) {
-                    MyLazyColumn(state = lazyListState) {
+                    MyLazyColumn(
+                        state = lazyListState,
+                        contentPadding = PaddingValues(
+                            top = 4.dp,
+                            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 12.dp,
+                        ),
+                    ) {
                         items(
                             items = data,
                             key = { it.threadId }
@@ -240,6 +259,7 @@ private fun StoreItem(
     val isDeleted = remember(info) { info.isDeleted == "1" }
     val textMeasurer = rememberTextMeasurer()
     LongClickMenu(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard(),
         menuContent = {
             DropdownMenuItem(onClick = onDelete) {
                 Text(text = stringResource(id = R.string.title_collect_on))
@@ -248,8 +268,7 @@ private fun StoreItem(
         onClick = onClick
     ) {
         Column(
-            modifier = modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             UserHeader(
@@ -309,15 +328,15 @@ private fun StoreItem(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(
-                                        color = ExtendedTheme.colors.chip,
-                                        shape = RoundedCornerShape(3.dp)
+                                        color = ExtendedTheme.colors.contentInsetBackground,
+                                        shape = RoundedCornerShape(50)
                                     )
                                     .padding(vertical = 4.dp, horizontal = 12.dp)
                             ) {
                                 Text(
                                     text = updateTip,
                                     style = UpdateTipTextStyle,
-                                    color = ExtendedTheme.colors.onChip,
+                                    color = ExtendedTheme.colors.textSecondary,
                                     modifier = Modifier.align(Alignment.Center)
                                 )
                             }

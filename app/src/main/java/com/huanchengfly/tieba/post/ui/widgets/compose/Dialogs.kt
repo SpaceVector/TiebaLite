@@ -376,6 +376,7 @@ fun Dialog(
     cancelableOnTouchOutside: Boolean = true,
     title: @Composable (DialogScope.() -> Unit)? = null,
     buttons: @Composable (DialogScope.() -> Unit) = {},
+    useCardSurface: Boolean = false,
     content: @Composable (DialogScope.() -> Unit),
 ) {
     val windowWidthSizeClass = LocalWindowSizeClass.current.widthSizeClass
@@ -403,9 +404,12 @@ fun Dialog(
                     }
                 )
                 .padding(16.dp)
-                .background(
-                    color = ExtendedTheme.colors.windowBackground,
-                    shape = RoundedCornerShape(24.dp)
+                .then(
+                    if (useCardSurface) Modifier.contentCard()
+                    else Modifier.background(
+                        color = ExtendedTheme.colors.windowBackground,
+                        shape = RoundedCornerShape(24.dp)
+                    )
                 )
                 .padding(vertical = 24.dp),
         ) {

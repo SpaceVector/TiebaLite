@@ -10,7 +10,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
@@ -128,15 +133,28 @@ internal fun ThreadBottomBar(
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
                         .padding(end = 124.dp),
-                    enter = fadeIn(tween(140, delayMillis = 140)),
-                    exit = fadeOut(tween(80)),
+                    // Follow the expanding capsule instead of blinking out and reappearing after a delay.
+                    enter = fadeIn(tween(260, easing = FastOutSlowInEasing)) +
+                            scaleIn(
+                                tween(260, easing = FastOutSlowInEasing),
+                                initialScale = 0.94f,
+                                transformOrigin = TransformOrigin(1f, 0.5f),
+                            ) +
+                            slideInHorizontally(tween(260, easing = FastOutSlowInEasing)) { it / 16 },
+                    exit = fadeOut(tween(240, easing = FastOutSlowInEasing)) +
+                            scaleOut(
+                                tween(240, easing = FastOutSlowInEasing),
+                                targetScale = 0.94f,
+                                transformOrigin = TransformOrigin(1f, 0.5f),
+                            ) +
+                            slideOutHorizontally(tween(240, easing = FastOutSlowInEasing)) { it / 16 },
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp)
                             .floatingGlassSurface(backdrop, themeColors, themeColors.threadBottomBar)
-                            .clickable(onClick = onClickReply)
+                            .clickable(enabled = showReply && !menuExpanded, onClick = onClickReply)
                             .padding(horizontal = 14.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically,

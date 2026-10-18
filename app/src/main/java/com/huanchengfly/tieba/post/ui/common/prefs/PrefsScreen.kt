@@ -1,9 +1,13 @@
 package com.huanchengfly.tieba.post.ui.common.prefs
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -15,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import com.huanchengfly.tieba.post.ui.widgets.compose.Container
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
 
 lateinit var LocalPrefsDataStore: ProvidableCompositionLocal<DataStore<Preferences>>
 
@@ -40,11 +45,25 @@ fun PrefsScreen(
     CompositionLocalProvider(LocalPrefsDataStore provides dataStore) {
         Container {
             Column {
-                Spacer(modifier = Modifier.height(12.dp))
-                LazyColumn(modifier = modifier.fillMaxSize()) {
-
+                LazyColumn(
+                    modifier = modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        top = 4.dp,
+                        bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 12.dp,
+                    ),
+                ) {
                     items(prefsScope.prefsItems.size) { index ->
-                        prefsScope.getPrefsItem(index)()
+                        // Footer metadata includes the last real preference and the following spacer.
+                        val isGroupSpacer = index in prefsScope.footerIndexes && index - 1 in prefsScope.footerIndexes
+                        if (index in prefsScope.headerIndexes || isGroupSpacer) {
+                            prefsScope.getPrefsItem(index)()
+                        } else {
+                            Column(
+                                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard()
+                            ) {
+                                prefsScope.getPrefsItem(index)()
+                            }
+                        }
 
                         if (dividerThickness != 0.dp
                             && index != prefsScope.prefsItems.size - 1

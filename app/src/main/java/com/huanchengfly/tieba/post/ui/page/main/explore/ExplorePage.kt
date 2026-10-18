@@ -36,11 +36,13 @@ import com.huanchengfly.tieba.post.ui.page.main.explore.concern.ConcernPage
 import com.huanchengfly.tieba.post.ui.page.main.explore.hot.HotPage
 import com.huanchengfly.tieba.post.ui.page.main.explore.personalized.PersonalizedPage
 import com.huanchengfly.tieba.post.ui.widgets.compose.ActionItem
+import com.huanchengfly.tieba.post.ui.widgets.compose.FloatingContentCardLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoadHorizontalPager
 import com.huanchengfly.tieba.post.ui.widgets.compose.PagerTabIndicator
 import com.huanchengfly.tieba.post.ui.widgets.compose.TabRow
 import com.huanchengfly.tieba.post.ui.widgets.compose.Toolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.accountNavIconIfCompact
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.utils.AccountUtil.LocalAccount
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.toImmutableList
@@ -145,34 +147,38 @@ fun ExplorePage() {
     }
 
     Scaffold(
-        backgroundColor = Color.Transparent,
-        topBar = {
-            Toolbar(
-                title = stringResource(id = R.string.title_explore),
-                navigationIcon = accountNavIconIfCompact(),
-                actions = {
-                    ActionItem(
-                        icon = Icons.Rounded.Search,
-                        contentDescription = stringResource(id = R.string.title_search)
-                    ) {
-                        navigator.navigate(SearchPageDestination)
-                    }
-                },
-            ) {
-                ExplorePageTab(pagerState = pagerState, pages = pages)
-            }
-        },
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
         modifier = Modifier.fillMaxSize(),
     ) { paddingValues ->
-        LazyLoadHorizontalPager(
-            contentPadding = paddingValues,
-            state = pagerState,
-            key = { pages[it].id },
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.Top,
-            userScrollEnabled = true,
+        FloatingContentCardLayout(
+            topBar = {
+                Toolbar(
+                    insets = false,
+                    title = stringResource(id = R.string.title_explore),
+                    navigationIcon = accountNavIconIfCompact(),
+                    actions = {
+                        ActionItem(
+                            icon = Icons.Rounded.Search,
+                            contentDescription = stringResource(id = R.string.title_search)
+                        ) {
+                            navigator.navigate(SearchPageDestination)
+                        }
+                    },
+                ) {
+                    ExplorePageTab(pagerState = pagerState, pages = pages)
+                }
+            },
         ) {
-            pages[it].content()
+            LazyLoadHorizontalPager(
+                contentPadding = paddingValues,
+                state = pagerState,
+                key = { pages[it].id },
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.Top,
+                userScrollEnabled = true,
+            ) {
+                pages[it].content()
+            }
         }
     }
 }

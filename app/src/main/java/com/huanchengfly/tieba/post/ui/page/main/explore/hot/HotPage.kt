@@ -60,10 +60,12 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Container
 import com.huanchengfly.tieba.post.ui.widgets.compose.FeedCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalContentCardTopPadding
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.ProvideContentColor
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalGrid
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.items
 import com.huanchengfly.tieba.post.ui.widgets.compose.itemsIndexed
 import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
@@ -114,7 +116,10 @@ fun HotPage(
         onRefresh = { viewModel.send(HotUiIntent.Load) })
     Box(modifier = Modifier.pullRefresh(pullRefreshState)) {
         MyLazyColumn(
-            contentPadding = PaddingValues(bottom = LocalMainNavigationBottomPadding.current),
+            contentPadding = PaddingValues(
+                top = LocalContentCardTopPadding.current,
+                bottom = LocalMainNavigationBottomPadding.current,
+            ),
             modifier = Modifier
                 .fillMaxWidth(),
         ) {
@@ -292,7 +297,11 @@ fun HotPage(
                         items = threadList,
                         key = { _, item -> "Thread_${item.get { threadId }}" }
                     ) { index, item ->
-                        Container {
+                        Container(
+                            modifier = Modifier
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .contentCard()
+                        ) {
                             FeedCard(
                                 item = item,
                                 onClick = {
@@ -372,7 +381,7 @@ fun HotPage(
         PullRefreshIndicator(
             refreshing = isLoading,
             state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = LocalContentCardTopPadding.current),
             backgroundColor = ExtendedTheme.colors.pullRefreshIndicator,
             contentColor = ExtendedTheme.colors.primary,
         )
