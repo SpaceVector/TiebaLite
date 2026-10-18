@@ -128,9 +128,16 @@ object EmoticonManager {
     private val coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     fun getEmoticonInlineContent(
-        sizePx: Float
+        sizePx: Float,
+        text: AnnotatedString? = null,
     ): Map<String, InlineTextContent> {
-        return emoticonIds.associate { id ->
+        val ids = text?.getStringAnnotations(EmoticonUtil.INLINE_CONTENT_TAG, 0, text.length)
+            ?.mapNotNull { annotation ->
+                annotation.item.takeIf { it.startsWith("Emoticon#") }
+                    ?.removePrefix("Emoticon#")?.takeIf { it in emoticonIds }
+            }?.distinct() ?: emoticonIds
+        if (ids.isEmpty()) return emptyMap()
+        return ids.associate { id ->
             "Emoticon#$id" to InlineTextContent(
                 placeholder = Placeholder(
                     sizePx.pxToSp().sp,

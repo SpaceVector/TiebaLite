@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -86,7 +87,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
-import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import com.huanchengfly.tieba.post.App
 import com.huanchengfly.tieba.post.R
@@ -185,6 +185,18 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlin.math.max
+
+internal fun findLastVisibleThreadPost(
+    data: List<PostItemData>,
+    visibleItems: List<LazyListItemInfo>,
+    firstPost: ImmutableHolder<Post>?,
+): ImmutableHolder<Post>? {
+    val lastPostKey = visibleItems.lastOrNull { info ->
+        (info.key as? String)?.startsWith("Post_") == true
+    }?.key as? String ?: return firstPost
+    val lastPostId = lastPostKey.removePrefix("Post_").toLongOrNull() ?: return firstPost
+    return data.firstOrNull { it.post.get().id == lastPostId }?.post ?: firstPost
+}
 
 private fun getDescText(
     time: Long?,
@@ -650,12 +662,7 @@ fun ThreadPage(
     var menuExpanded by rememberSaveable(threadId) { mutableStateOf(false) }
     val lastVisibilityPost by remember {
         derivedStateOf {
-            data.firstOrNull { (post) ->
-                val lastPostKey = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull { info ->
-                    info.key is String && (info.key as String).startsWith("Post_")
-                }?.key as String?
-                lastPostKey?.endsWith(post.get { id }.toString()) == true
-            }?.post ?: firstPost
+            findLastVisibleThreadPost(data, lazyListState.layoutInfo.visibleItemsInfo, firstPost)
         }
     }
     val lastVisibilityPostId by remember {
@@ -1345,7 +1352,6 @@ fun ThreadPage(
                                                     )
                                                     LottieAnimation(
                                                         composition = composition,
-                                                        iterations = LottieConstants.IterateForever,
                                                         modifier = Modifier
                                                             .fillMaxWidth()
                                                             .aspectRatio(2f)

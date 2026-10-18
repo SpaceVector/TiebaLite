@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
@@ -21,9 +22,11 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -42,7 +45,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.huanchengfly.tieba.post.R
 import com.huanchengfly.tieba.post.models.database.Account
 import com.huanchengfly.tieba.post.api.models.MessageListBean
+import com.huanchengfly.tieba.post.api.models.protos.FrsTabInfo
 import com.huanchengfly.tieba.post.api.models.protos.PbContent
+import com.huanchengfly.tieba.post.api.models.protos.RecommendTopicList
 import com.huanchengfly.tieba.post.api.models.protos.ThreadInfo
 import com.huanchengfly.tieba.post.api.models.protos.User
 import com.huanchengfly.tieba.post.api.models.protos.userLike.ConcernData
@@ -54,7 +59,9 @@ import com.huanchengfly.tieba.post.ui.common.theme.compose.LocalExtendedColors
 import com.huanchengfly.tieba.post.ui.common.theme.compose.getColorPalette
 import com.huanchengfly.tieba.post.ui.models.ThreadItemData
 import com.huanchengfly.tieba.post.ui.page.ProvideNavigator
+import com.huanchengfly.tieba.post.ui.page.destinations.HotTopicListPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.SearchPageDestination
+import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
 import com.huanchengfly.tieba.post.ui.page.main.LocalMainNavigationBottomPadding
 import com.huanchengfly.tieba.post.ui.page.main.explore.ExplorePage
 import com.huanchengfly.tieba.post.ui.page.main.explore.concern.ConcernUiState
@@ -218,6 +225,120 @@ class MainHeaderCardsTest {
         File(outputDirectory(), "measurements.txt").writeText(measurements.joinToString("\n", postfix = "\n") + "Initialized synthetic models unchanged; no API, account, preference or data writes.\n")
     }
 
+    @Test
+    fun hotRankingSectionsUseCardsInBothThemes() {
+        reportDirectoryName = "hot-ranking-cards-v16"
+        val dark = mutableStateOf(false)
+        val navigator = RecordingNavigator()
+        val threads = (1..6).map { index ->
+            ThreadInfo(id = -17403510L - index, threadId = -17403510L - index,
+                title = "热榜内容预览$index", replyNum = 12, hotNum = 1200 + index,
+                richAbstract = listOf(PbContent(text = "话题榜、分类和帖子列表采用一致的卡片层次。")))
+        }
+        val initial = HotUiState(
+            isRefreshing = false,
+            topicList = (1..6).map { index ->
+                RecommendTopicList(topicId = -17403530L - index, topicName = "话题预览$index",
+                    tag = if (index == 1) 2 else if (index == 2) 1 else 0).wrapImmutable()
+            }.toImmutableList(),
+            tabList = listOf("tech" to "数码", "games" to "游戏", "life" to "生活", "sports" to "体育")
+                .map { (code, name) -> FrsTabInfo(tabCode = code, tabName = name).wrapImmutable() }.toImmutableList(),
+            threadList = threads.map { it.wrapImmutable() }.toImmutableList(),
+        )
+        val hot = HotViewModel().apply { initialized = true }
+        val state = seed(hot, initial)
+        val personalized = PersonalizedViewModel().apply {
+            initialized = true
+            seed(this, PersonalizedUiState(isRefreshing = false))
+        }
+        compose.runOnUiThread {
+            listOf(hot, personalized).forEach { model ->
+                ViewModelProvider(owner, object : ViewModelProvider.Factory {
+                    override fun <T : ViewModel> create(modelClass: Class<T>): T = modelClass.cast(model)!!
+                })[model.javaClass]
+            }
+        }
+        compose.setContent { Preview(dark.value, navigator) { ExplorePage() } }
+        compose.onNodeWithText(context.getString(R.string.title_hot)).performClick()
+        val measurements = mutableListOf<String>()
+        val title = context.getString(R.string.hot_topic_rank)
+        val all = context.getString(R.string.tab_all_hot_thread)
+        val rule = context.getString(R.string.hot_thread_rank_rule)
+        fun px(dp: Float) = with(compose.density) { dp.dp.toPx() }
+        fun currentList() = compose.onNode(SemanticsMatcher("Visible hot vertical list") { node ->
+            node.config.contains(SemanticsActions.ScrollToIndex) && node.config.contains(SemanticsProperties.VerticalScrollAxisRange) &&
+                node.boundsInRoot.right > 0f && node.boundsInRoot.left < px(360f)
+        })
+        fun capture(name: String): Bitmap {
+            compose.mainClock.advanceTimeBy(500); compose.waitForIdle(); SystemClock.sleep(250)
+            val image = compose.onNodeWithTag("preview").captureToImage().asAndroidBitmap()
+            File(outputDirectory(), "$name.png").outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            return image
+        }
+        for (night in listOf(false, true)) {
+            compose.runOnIdle { dark.value = night; state.value = initial }
+            currentList().performScrollToIndex(0)
+            val mode = if (night) "dark" else "light"
+            val image = capture("$mode-populated")
+            val palette = colors(night)
+            val origin = compose.onNodeWithTag("preview").fetchSemanticsNode().boundsInRoot
+            fun pixel(bitmap: Bitmap, x: Float, y: Float) = bitmap.getPixel(px(x).toInt(), (y - origin.top).toInt())
+            for (label in listOf(title, rule, "话题预览1", "话题预览6", context.getString(R.string.tip_more_topic))) {
+                val node = compose.onNodeWithText(label)
+                node.assertIsDisplayed()
+                val bounds = node.fetchSemanticsNode().boundsInRoot
+                assertEquals("$label shares its section's card fill", palette.contentCardBackground.toArgb(), pixel(image, 16f, bounds.center.y))
+                assertEquals("No full-width legacy strip", palette.contentPageBackground.toArgb(), pixel(image, 2f, bounds.center.y))
+            }
+            val heading = compose.onNodeWithText(title).fetchSemanticsNode().boundsInRoot
+            val cardTop = heading.top - px(16f)
+            assertEquals("Rounded topic card exposes its corner", palette.contentPageBackground.toArgb(), pixel(image, 12f, cardTop + px(1f)))
+            assertEquals("Title and topics belong to one continuous card", palette.contentCardBackground.toArgb(), pixel(image, 16f, heading.bottom + px(4f)))
+            val hotTab = compose.onNodeWithText(context.getString(R.string.title_hot))
+            hotTab.assertIsSelected()
+            assertTrue("First card starts below floating header", heading.top >= hotTab.fetchSemanticsNode().boundsInRoot.bottom + px(16f))
+            for (label in listOf(title, rule)) {
+                val layouts = mutableListOf<TextLayoutResult>()
+                compose.onNodeWithText(label).performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+                val foreground = layouts.single().layoutInput.style.color.compositeOver(palette.contentCardBackground)
+                val contrast = (maxOf(foreground.luminance(), palette.contentCardBackground.luminance()) + 0.05f) /
+                    (minOf(foreground.luminance(), palette.contentCardBackground.luminance()) + 0.05f)
+                assertTrue("$label contrast=$contrast", contrast >= 4.5f)
+                measurements += "$mode: $label contrast=$contrast"
+            }
+            for (label in listOf(all, "数码", "游戏", "生活", "体育")) {
+                val tab = compose.onNodeWithText(label)
+                tab.assertIsDisplayed()
+                assertEquals(label == all, tab.fetchSemanticsNode().config[SemanticsProperties.Selected])
+                assertTrue("Category touch target at least40dp", tab.fetchSemanticsNode().boundsInRoot.height >= px(40f) - 1f)
+            }
+            compose.onNodeWithText(context.getString(R.string.tip_more_topic)).performClick()
+            assertEquals(HotTopicListPageDestination.route, navigator.routes.last())
+            compose.onNodeWithText(threads.first().title, substring = true).performClick()
+            assertEquals(ThreadPageDestination(threadId = threads.first().id, threadInfo = threads.first()).route, navigator.routes.last())
+            compose.onAllNodesWithText("12")[0].performClick()
+            assertEquals(ThreadPageDestination(threadId = threads.first().id, scrollToReply = true).route, navigator.routes.last())
+            // Seed a selected/loading state without sending real category-refresh requests.
+            compose.runOnIdle { state.value = initial.copy(currentTabCode = "tech", isLoadingThreadList = true) }
+            val loadingImage = capture("$mode-selected-loading")
+            compose.onNodeWithText("数码").assertIsSelected()
+            val skeleton = compose.onAllNodesWithText(context.getString(R.string.hot_num, "666")).fetchSemanticsNodes()
+                .first { it.boundsInRoot.height > 0f && it.boundsInRoot.top < origin.bottom }
+            assertEquals("Loading uses the same card fill", palette.contentCardBackground.toArgb(), pixel(loadingImage, 16f, skeleton.boundsInRoot.center.y))
+            assertEquals("Loading keeps the12dp exterior gutter", palette.contentPageBackground.toArgb(), pixel(loadingImage, 2f, skeleton.boundsInRoot.center.y))
+            compose.runOnIdle { state.value = initial }
+            currentList().performScrollToIndex(4)
+            capture("$mode-scrolled")
+            compose.onNodeWithText(title).assertIsNotDisplayed()
+            compose.onNodeWithText(rule).assertIsNotDisplayed()
+            compose.onNodeWithText(threads[2].title, substring = true).assertIsDisplayed()
+            measurements += "$mode: seeded topics+tabs+threads; section fill/gutter/corner; selected40dp categories; more/post/reply routes; carded loading; sections scroll away; model/order unchanged"
+        }
+        assertEquals(initial, hot.uiState.value)
+        File(outputDirectory(), "measurements.txt").writeText(measurements.joinToString("\n", postfix = "\n") +
+            "Synthetic initialized models only; no real API/category-refresh/account/preference writes.\n")
+    }
+
     private fun verifyHeaders(dark: Boolean) {
         val screen = mutableStateOf("home")
         val navigator = RecordingNavigator()
@@ -322,11 +443,13 @@ class MainHeaderCardsTest {
         assertEquals(initialStates, fixtures.map { it.uiState.value })
     }
 
-    private fun <S : UiState> seed(model: BaseViewModel<*, *, *, *>, state: S) {
+    private fun <S : UiState> seed(model: BaseViewModel<*, *, *, *>, state: S): MutableStateFlow<S> {
+        val flow = MutableStateFlow(state)
         BaseViewModel::class.java.getDeclaredField("uiState").apply {
             isAccessible = true
-            set(model, MutableStateFlow(state))
+            set(model, flow)
         }
+        return flow
     }
 
     private fun outputDirectory() = File(context.getExternalFilesDir(null), reportDirectoryName).apply { mkdirs() }
