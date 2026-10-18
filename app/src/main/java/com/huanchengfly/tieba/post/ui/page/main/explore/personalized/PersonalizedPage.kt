@@ -72,8 +72,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.ErrorScreen
 import com.huanchengfly.tieba.post.ui.widgets.compose.FeedCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalContentCardTopPadding
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
-import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -162,7 +163,7 @@ fun PersonalizedPage(
         }
     }
     StateScreen(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(top = if (isEmpty) LocalContentCardTopPadding.current else 0.dp),
         isEmpty = isEmpty,
         isError = isError,
         isLoading = isRefreshing,
@@ -236,7 +237,7 @@ fun PersonalizedPage(
             PullRefreshIndicator(
                 refreshing = isRefreshing,
                 state = pullRefreshState,
-                modifier = Modifier.align(Alignment.TopCenter),
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = LocalContentCardTopPadding.current),
                 backgroundColor = ExtendedTheme.colors.pullRefreshIndicator,
                 contentColor = ExtendedTheme.colors.primary,
             )
@@ -245,7 +246,7 @@ fun PersonalizedPage(
                 visible = showRefreshTip,
                 enter = fadeIn() + slideInVertically(),
                 exit = slideOutVertically() + fadeOut(),
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = LocalContentCardTopPadding.current)
             ) {
                 RefreshTip(refreshCount = refreshCount)
             }
@@ -294,7 +295,10 @@ private fun FeedList(
 
     MyLazyColumn(
         state = state,
-        contentPadding = PaddingValues(bottom = LocalMainNavigationBottomPadding.current),
+        contentPadding = PaddingValues(
+            top = LocalContentCardTopPadding.current,
+            bottom = LocalMainNavigationBottomPadding.current,
+        ),
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -318,12 +322,6 @@ private fun FeedList(
                 ) { hiddenThreadIdSet.contains(item.get { threadId }) || hidden }
             val isRefreshPosition =
                 remember(index, refreshPosition) { index + 1 == refreshPosition }
-            val isNotLast = remember(index, data.size) { index < data.size - 1 }
-            val showDivider = remember(
-                isHidden,
-                isRefreshPosition,
-                isNotLast
-            ) { !isHidden && !isRefreshPosition && isNotLast }
             Container {
                 AnimatedVisibility(
                     visible = !isHidden,
@@ -336,9 +334,14 @@ private fun FeedList(
                             blockedTip = { BlockTip(text = { Text(text = stringResource(id = R.string.tip_blocked_thread)) }) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 8.dp, horizontal = 16.dp)
+                                .padding(vertical = 4.dp, horizontal = 12.dp)
                         ) {
-                            Column {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    .contentCard()
+                            ) {
                                 FeedCard(
                                     item = item,
                                     onClick = onItemClick,
@@ -359,12 +362,6 @@ private fun FeedList(
                                             }
                                         )
                                     }
-                                }
-                                if (showDivider) {
-                                    VerticalDivider(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
-                                        thickness = 2.dp
-                                    )
                                 }
                             }
                         }

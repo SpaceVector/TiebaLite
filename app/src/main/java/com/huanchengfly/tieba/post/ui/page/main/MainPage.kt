@@ -6,6 +6,7 @@ import androidx.compose.animation.graphics.ExperimentalAnimationGraphicsApi
 import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -49,6 +50,7 @@ import com.huanchengfly.tieba.post.ui.utils.MainNavigationContentPosition
 import com.huanchengfly.tieba.post.ui.utils.MainNavigationType
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoadHorizontalPager
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberGlassBackdrop
 import com.huanchengfly.tieba.post.utils.appPreferences
@@ -142,6 +144,7 @@ fun MainPage(
 
     val coroutineScope = rememberCoroutineScope()
     val themeColors = ExtendedTheme.colors
+    val contentBackground = themeColors.contentPageBackground
     val navigationItems by remember {
         derivedStateOf {
             listOfNotNull(
@@ -286,7 +289,8 @@ fun MainPage(
                     key = { navigationItems[it].id },
                     modifier = Modifier
                         .fillMaxSize()
-                        .glassBackdropSource(backdrop, themeColors.background),
+                        .background(contentBackground)
+                        .glassBackdropSource(backdrop, contentBackground),
                     verticalAlignment = Alignment.Top,
                     userScrollEnabled = false
                 ) {

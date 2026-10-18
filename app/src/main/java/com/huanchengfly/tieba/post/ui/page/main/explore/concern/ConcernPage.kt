@@ -34,8 +34,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Container
 import com.huanchengfly.tieba.post.ui.widgets.compose.FeedCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
+import com.huanchengfly.tieba.post.ui.widgets.compose.LocalContentCardTopPadding
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
-import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
 import kotlinx.collections.immutable.persistentListOf
 
 @OptIn(ExperimentalMaterialApi::class)
@@ -89,7 +90,10 @@ fun ConcernPage(
         ) {
             MyLazyColumn(
                 state = lazyListState,
-                contentPadding = PaddingValues(bottom = LocalMainNavigationBottomPadding.current),
+                contentPadding = PaddingValues(
+                    top = LocalContentCardTopPadding.current,
+                    bottom = LocalMainNavigationBottomPadding.current,
+                ),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.fillMaxWidth(),
             ) {
@@ -97,10 +101,15 @@ fun ConcernPage(
                     items = data,
                     key = { _, item -> "${item.recommendType}_${item.threadList?.id}" },
                     contentType = { _, item -> item.recommendType }
-                ) { index, item ->
+                ) { _, item ->
                     Container {
                         if (item.recommendType == 1) {
-                            Column {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                                    .contentCard()
+                            ) {
                                 FeedCard(
                                     item = wrapImmutable(item.threadList!!),
                                     onClick = {
@@ -133,12 +142,6 @@ fun ConcernPage(
                                     onClickForum = { navigator.navigate(ForumPageDestination(it.name)) },
                                     onClickUser = { navigator.navigate(UserProfilePageDestination(it.id)) },
                                 )
-                                if (index < data.size - 1) {
-                                    VerticalDivider(
-                                        modifier = Modifier.padding(horizontal = 16.dp),
-                                        thickness = 2.dp
-                                    )
-                                }
                             }
                         } else {
                             Box {}
@@ -151,7 +154,7 @@ fun ConcernPage(
         PullRefreshIndicator(
             refreshing = isRefreshing,
             state = pullRefreshState,
-            modifier = Modifier.align(Alignment.TopCenter),
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = LocalContentCardTopPadding.current),
             backgroundColor = ExtendedTheme.colors.pullRefreshIndicator,
             contentColor = ExtendedTheme.colors.primary,
         )

@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,17 +14,24 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.material.ButtonDefaults
@@ -31,6 +39,7 @@ import androidx.compose.material.CircularProgressIndicator
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.Icon
+import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ProvideTextStyle
 import androidx.compose.material.SnackbarDuration
@@ -62,8 +71,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -91,6 +103,7 @@ import com.huanchengfly.tieba.post.api.retrofit.exception.getErrorMessage
 import com.huanchengfly.tieba.post.arch.GlobalEvent
 import com.huanchengfly.tieba.post.arch.ImmutableHolder
 import com.huanchengfly.tieba.post.arch.collectPartialAsState
+import com.huanchengfly.tieba.post.arch.emitGlobalEvent
 import com.huanchengfly.tieba.post.arch.onEvent
 import com.huanchengfly.tieba.post.arch.onGlobalEvent
 import com.huanchengfly.tieba.post.arch.pageViewModel
@@ -115,7 +128,6 @@ import com.huanchengfly.tieba.post.ui.page.destinations.UserProfilePageDestinati
 import com.huanchengfly.tieba.post.ui.page.subposts.SubPostsIpCache
 import com.huanchengfly.tieba.post.ui.page.subposts.SubPostsNavigationCache
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
-import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockTip
 import com.huanchengfly.tieba.post.ui.widgets.compose.BlockableContent
 import com.huanchengfly.tieba.post.ui.widgets.compose.Button
@@ -124,7 +136,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.Chip
 import com.huanchengfly.tieba.post.ui.widgets.compose.ConfirmDialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.Container
 import com.huanchengfly.tieba.post.ui.widgets.compose.ErrorScreen
-import com.huanchengfly.tieba.post.ui.widgets.compose.HorizontalDivider
+import com.huanchengfly.tieba.post.ui.widgets.compose.GlassBackdrop
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
@@ -135,10 +147,14 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.OriginThreadCard
 import com.huanchengfly.tieba.post.ui.widgets.compose.PromptDialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.TipScreen
-import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
 import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.buildChipInlineContent
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCardBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.floatingGlassSurface
 import com.huanchengfly.tieba.post.ui.widgets.compose.glassBackdropSource
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberGlassBackdrop
@@ -151,6 +167,7 @@ import com.huanchengfly.tieba.post.utils.StringUtil.getShortNumString
 import com.huanchengfly.tieba.post.utils.TiebaUtil
 import com.huanchengfly.tieba.post.utils.Util.getIconColorByLevel
 import com.huanchengfly.tieba.post.utils.appPreferences
+import com.huanchengfly.tieba.post.utils.compose.calcStatusBarColor
 import com.ramcosta.composedestinations.annotation.DeepLink
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -247,10 +264,10 @@ fun PostAgreeBtn(
     )
     Button(
         onClick = onClick,
-        shape = RoundedCornerShape(4.dp),
+        shape = RoundedCornerShape(12.dp),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
         colors = ButtonDefaults.buttonColors(
-            backgroundColor = ExtendedTheme.colors.background,
+            backgroundColor = Color.Transparent,
             contentColor = animatedColor
         ),
         modifier = modifier
@@ -628,6 +645,7 @@ fun ThreadPage(
 
     val themeColors = ExtendedTheme.colors
     val backdrop = rememberGlassBackdrop()
+    val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 64.dp
     val lazyListState = rememberLazyListState()
     var menuExpanded by rememberSaveable(threadId) { mutableStateOf(false) }
     val lastVisibilityPost by remember {
@@ -1118,20 +1136,7 @@ fun ThreadPage(
         ) {
             MyScaffold(
                 scaffoldState = scaffoldState,
-                topBar = {
-                    TopBar(
-                        forum = forum,
-                        onBack = { if (menuExpanded) closeMoreMenu() else navigator.navigateUp() },
-                        onForumClick = {
-                            val forumName = forum?.get { name }
-                            if (forumName != null) navigator.navigate(
-                                ForumPageDestination(
-                                    forumName
-                                )
-                            )
-                        }
-                    )
-                },
+                backgroundColor = themeColors.contentPageBackground,
                 bottomBar = {
                     ThreadBottomBarSpacer(context.appPreferences.liftUpBottomBar)
                 },
@@ -1139,12 +1144,11 @@ fun ThreadPage(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .padding(top = paddingValues.calculateTopPadding())
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .glassBackdropSource(backdrop, themeColors.background)
+                            .glassBackdropSource(backdrop, themeColors.contentPageBackground)
                             .pullRefresh(state = pullRefreshState, enabled = enablePullRefresh)
                     ) {
                         LoadMoreLayout(
@@ -1192,7 +1196,7 @@ fun ThreadPage(
                         ) {
                             MyLazyColumn(
                                 state = lazyListState,
-                                contentPadding = PaddingValues(bottom = paddingValues.calculateBottomPadding()),
+                                contentPadding = PaddingValues(top = topPadding, bottom = paddingValues.calculateBottomPadding()),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 item(key = "FirstPost") {
@@ -1251,10 +1255,10 @@ fun ThreadPage(
                                                         OriginThreadCard(
                                                             originThreadInfo = it,
                                                             modifier = Modifier
-                                                                .padding(horizontal = 16.dp)
-                                                                .padding(bottom = 16.dp)
-                                                                .clip(RoundedCornerShape(6.dp))
-                                                                .background(ExtendedTheme.colors.floorCard)
+                                                                .padding(horizontal = 12.dp)
+                                                                .padding(bottom = 4.dp)
+                                                                .clip(RoundedCornerShape(14.dp))
+                                                                .background(ExtendedTheme.colors.contentInsetBackground)
                                                                 .clickable {
                                                                     navigator.navigate(
                                                                         ThreadPageDestination(
@@ -1266,91 +1270,25 @@ fun ThreadPage(
                                                                 .padding(16.dp)
                                                         )
                                                     }
-
-                                                VerticalDivider(
-                                                    modifier = Modifier
-                                                        .padding(horizontal = 16.dp)
-                                                        .padding(bottom = 8.dp),
-                                                    thickness = 2.dp
-                                                )
                                             }
                                         }
                                     }
                                 }
-                                stickyHeader(key = "ThreadHeader") {
-                                    Container {
-                                        Row(
-                                            modifier = Modifier
-                                                .background(MaterialTheme.colors.background)
-                                                .padding(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = stringResource(
-                                                    R.string.title_thread_header,
-                                                    "${thread?.get { replyNum - 1 } ?: 0}"),
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = ExtendedTheme.colors.text,
-                                                modifier = Modifier.padding(horizontal = 8.dp),
+                                item(key = "ThreadHeader") {
+                                    ThreadRepliesHeader(
+                                        replyCount = "${thread?.get { replyNum - 1 } ?: 0}",
+                                        seeLz = isSeeLz,
+                                        onSeeLzChange = { seeLz ->
+                                            viewModel.send(
+                                                ThreadUiIntent.LoadFirstPage(
+                                                    threadId = threadId,
+                                                    forumId = forumId,
+                                                    seeLz = seeLz,
+                                                    sortType = curSortType
+                                                )
                                             )
-                                            Spacer(modifier = Modifier.weight(1f))
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.height(IntrinsicSize.Min)
-                                            ) {
-                                                Text(
-                                                    text = stringResource(R.string.text_all),
-                                                    modifier = Modifier
-                                                        .padding(horizontal = 8.dp)
-                                                        .clickable(
-                                                            interactionSource = remember { MutableInteractionSource() },
-                                                            indication = null,
-                                                            enabled = isSeeLz
-                                                        ) {
-                                                            if (isSeeLz) {
-                                                                viewModel.send(
-                                                                    ThreadUiIntent.LoadFirstPage(
-                                                                        threadId = threadId,
-                                                                        forumId = forumId,
-                                                                        seeLz = false,
-                                                                        sortType = curSortType
-                                                                    )
-                                                                )
-                                                            }
-                                                        },
-                                                    fontSize = 13.sp,
-                                                    fontWeight = if (!isSeeLz) FontWeight.SemiBold else FontWeight.Normal,
-                                                    color = if (!isSeeLz) ExtendedTheme.colors.text else ExtendedTheme.colors.textSecondary,
-                                                )
-                                                HorizontalDivider()
-                                                Text(
-                                                    text = stringResource(R.string.title_see_lz),
-                                                    modifier = Modifier
-                                                        .padding(horizontal = 8.dp)
-                                                        .clickable(
-                                                            interactionSource = remember { MutableInteractionSource() },
-                                                            indication = null,
-                                                            enabled = !isSeeLz
-                                                        ) {
-                                                            if (!isSeeLz) {
-                                                                viewModel.send(
-                                                                    ThreadUiIntent.LoadFirstPage(
-                                                                        threadId = threadId,
-                                                                        forumId = forumId,
-                                                                        seeLz = true,
-                                                                        sortType = curSortType
-                                                                    )
-                                                                )
-                                                            }
-                                                        },
-                                                    fontSize = 13.sp,
-                                                    fontWeight = if (isSeeLz) FontWeight.SemiBold else FontWeight.Normal,
-                                                    color = if (isSeeLz) ExtendedTheme.colors.text else ExtendedTheme.colors.textSecondary,
-                                                )
-                                            }
-                                        }
-                                    }
+                                        },
+                                    )
                                 }
                                 if (curSortType == ThreadSortType.SORT_TYPE_DESC) {
                                     latestPosts(true)
@@ -1477,7 +1415,7 @@ fun ThreadPage(
                         PullRefreshIndicator(
                             refreshing = isRefreshing,
                             state = pullRefreshState,
-                            modifier = Modifier.align(Alignment.TopCenter),
+                            modifier = Modifier.align(Alignment.TopCenter).padding(top = topPadding),
                             backgroundColor = ExtendedTheme.colors.pullRefreshIndicator,
                             contentColor = ExtendedTheme.colors.primary,
                         )
@@ -1493,6 +1431,16 @@ fun ThreadPage(
                                 )
                         )
                     }
+                    TopBar(
+                        forum = forum,
+                        backdrop = backdrop,
+                        onBack = { if (menuExpanded) closeMoreMenu() else navigator.navigateUp() },
+                        onForumClick = {
+                            val forumName = forum?.get { name }
+                            if (forumName != null) navigator.navigate(ForumPageDestination(forumName))
+                        },
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
                     ThreadBottomBar(
                         showReply = user.get { is_login } == 1 && !context.appPreferences.hideReply,
                         avatarUrl = StringUtil.getAvatarUrl(user.get { portrait }),
@@ -1645,51 +1593,130 @@ fun ThreadPage(
 }
 
 @Composable
+internal fun ThreadRepliesHeader(
+    replyCount: String,
+    seeLz: Boolean,
+    onSeeLzChange: (Boolean) -> Unit,
+) {
+    val colors = ExtendedTheme.colors
+    Container {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(colors.contentPageBackground)
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .contentCard()
+                .padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.title_thread_header, replyCount),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.text,
+            )
+            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(colors.contentInsetBackground)
+                    .padding(3.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf(false to R.string.text_all, true to R.string.title_see_lz).forEach { (onlyAuthor, label) ->
+                    val selected = seeLz == onlyAuthor
+                    Text(
+                        text = stringResource(label),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (selected) colors.contentCardBackground else Color.Transparent)
+                            .selectable(
+                                selected = selected,
+                                enabled = !selected,
+                                role = Role.Tab,
+                                onClick = { onSeeLzChange(onlyAuthor) },
+                            )
+                            .heightIn(min = 40.dp)
+                            .wrapContentHeight(Alignment.CenterVertically)
+                            .padding(horizontal = 10.dp),
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (selected) colors.text else colors.textSecondary,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun TopBar(
     forum: ImmutableHolder<SimpleForum>?,
+    backdrop: GlassBackdrop?,
     onBack: () -> Unit,
     onForumClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    TitleCentredToolbar(
-        title = {
-            forum?.let {
-                if (forum.get { name }.isNotBlank()) {
-                    Row(
-                        modifier = Modifier
-                            .padding(horizontal = 48.dp)
-                            .height(IntrinsicSize.Min)
-                            .clip(RoundedCornerShape(100))
-                            .background(ExtendedTheme.colors.chip)
-                            .clickable(onClick = onForumClick)
-                            .padding(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Avatar(
-                            data = forum.get { avatar },
-                            contentDescription = it.get { name },
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .aspectRatio(1f)
+    val colors = ExtendedTheme.colors
+    val coroutineScope = rememberCoroutineScope()
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Status icons still follow the toolbar palette; retain their original backdrop.
+        Spacer(
+            modifier = Modifier
+                .windowInsetsTopHeight(WindowInsets.statusBars)
+                .fillMaxWidth()
+                .background(colors.topBar.calcStatusBarColor()),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 12.dp),
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(48.dp)
+                    .floatingGlassSurface(backdrop, colors, surfaceColor = colors.contentCardBackground),
+            ) {
+                Icon(
+                    imageVector = ImageVector.vectorResource(R.drawable.ic_round_arrow_back),
+                    contentDescription = stringResource(R.string.button_back),
+                    tint = colors.text,
+                )
+            }
+            forum?.takeIf { it.get { name }.isNotBlank() }?.let {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 60.dp)
+                        .floatingGlassSurface(backdrop, colors, surfaceColor = colors.contentCardBackground)
+                        .combinedClickable(
+                            onClick = onForumClick,
+                            onDoubleClick = { coroutineScope.emitGlobalEvent(GlobalEvent.ScrollToTop) },
                         )
-
-                        Text(
-                            text = stringResource(id = R.string.title_forum, it.get { name }),
-                            fontSize = 14.sp,
-                            color = ExtendedTheme.colors.text,
-                            modifier = Modifier.padding(horizontal = 8.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Avatar(
+                        data = it.get { avatar },
+                        contentDescription = null,
+                        size = 24.dp,
+                    )
+                    Text(
+                        text = stringResource(R.string.title_forum, it.get { name }),
+                        fontSize = 14.sp,
+                        color = colors.text,
+                        modifier = Modifier.padding(start = 8.dp, end = 4.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
-        },
-        navigationIcon = {
-            BackNavigationIcon(onBack)
-        },
-        modifier = modifier
-    )
+        }
+    }
 }
 
 @Composable
@@ -1716,10 +1743,6 @@ fun PostCard(
     val navigator = LocalNavigator.current
     val coroutineScope = rememberCoroutineScope()
     val post = remember(postHolder) { postHolder.get() }
-    val hasPadding = remember(key1 = postHolder, key2 = immersiveMode) {
-        postHolder.get { floor > 1 } && !immersiveMode
-    }
-    val paddingModifier = Modifier.padding(start = if (hasPadding) Sizes.Small + 8.dp else 0.dp)
     val author = postHolder.get { author!! }
     val showTitle = remember(postHolder) {
         post.title.isNotBlank() && post.floor <= 1 && post.is_ntitle != 1
@@ -1751,9 +1774,13 @@ fun PostCard(
         hideBlockedContent = context.appPreferences.hideBlockedContent || immersiveMode,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp, horizontal = 16.dp)
+            .padding(vertical = 4.dp, horizontal = 12.dp)
     ) {
         LongClickMenu(
+            modifier = if (immersiveMode) Modifier else Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp)
+                .contentCard(),
             menuState = menuState,
             indication = null,
             onClick = {
@@ -1865,14 +1892,14 @@ fun PostCard(
                 content = {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = paddingModifier
-                            .fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         if (showTitle) {
                             Text(
                                 text = post.title,
                                 style = MaterialTheme.typography.subtitle1,
-                                fontSize = 15.sp
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
                             )
                         }
 
@@ -1897,9 +1924,8 @@ fun PostCard(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .then(paddingModifier)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(ExtendedTheme.colors.floorCard)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(ExtendedTheme.colors.contentInsetBackground)
                                 .padding(vertical = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {

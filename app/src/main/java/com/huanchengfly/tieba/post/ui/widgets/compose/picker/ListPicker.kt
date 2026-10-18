@@ -42,6 +42,7 @@ fun <ItemValue> ListSinglePicker(
     },
     colors: PickerColors = PickerDefaults.pickerColors(),
     enabled: Boolean = true,
+    itemModifier: Modifier = Modifier,
 ) {
     if (itemTitles.size != itemValues.size) error("titles and values do not match!")
     val itemTitleMaxWidth = itemTitles.maxOf { it.length }
@@ -49,7 +50,7 @@ fun <ItemValue> ListSinglePicker(
         repeat(itemTitles.size) {
             val selected = it == selectedPosition
             Row(
-                modifier = Modifier
+                modifier = itemModifier
                     .background(
                         color = colors.selectedItemColor(enabled = enabled).value.copy(
                             alpha = if (selectedPosition == it) 0.1f else 0f

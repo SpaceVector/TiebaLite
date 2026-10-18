@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -62,6 +65,8 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.TipScreen
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.DateTimeUtils
 import kotlinx.collections.immutable.ImmutableList
@@ -140,7 +145,11 @@ fun UserPostPage(
             ) {
                 Column {
                     repeat(4) {
-                        FeedCardPlaceholder()
+                        Column(
+                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard()
+                        ) {
+                            FeedCardPlaceholder()
+                        }
                     }
                 }
             }
@@ -303,7 +312,13 @@ private fun UserPostList(
     onClickForum: (name: String) -> Unit = {},
     onClickOriginThread: (threadId: Long) -> Unit = {},
 ) {
-    MyLazyColumn(state = lazyListState) {
+    MyLazyColumn(
+        state = lazyListState,
+        contentPadding = PaddingValues(
+            top = 4.dp,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 12.dp,
+        ),
+    ) {
         items(
             items = data,
             key = {
@@ -311,15 +326,19 @@ private fun UserPostList(
             }
         ) { itemData ->
             Container(fluid = fluid) {
-                UserPostItem(
-                    post = itemData,
-                    onClick = onClickItem,
-                    onAgree = onAgreeItem,
-                    onClickReply = onClickReply,
-                    onClickUser = onClickUser,
-                    onClickForum = onClickForum,
-                    onClickOriginThread = onClickOriginThread,
-                )
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard()
+                ) {
+                    UserPostItem(
+                        post = itemData,
+                        onClick = onClickItem,
+                        onAgree = onAgreeItem,
+                        onClickReply = onClickReply,
+                        onClickUser = onClickUser,
+                        onClickForum = onClickForum,
+                        onClickOriginThread = onClickOriginThread,
+                    )
+                }
             }
         }
     }
@@ -400,13 +419,14 @@ fun UserPostItem(
                     modifier = Modifier
                         .padding(horizontal = 16.dp)
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(ExtendedTheme.colors.floorCard)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ExtendedTheme.colors.contentInsetBackground)
                         .clickable {
                             onClickOriginThread(item.get { thread_id })
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.body2,
+                    color = ExtendedTheme.colors.textSecondary,
                 )
             },
             modifier = modifier,

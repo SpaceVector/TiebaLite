@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -48,17 +49,19 @@ import com.huanchengfly.tieba.post.arch.onEvent
 import com.huanchengfly.tieba.post.arch.pageViewModel
 import com.huanchengfly.tieba.post.models.database.Block
 import com.huanchengfly.tieba.post.ui.common.theme.compose.ExtendedTheme
-import com.huanchengfly.tieba.post.ui.page.main.BottomNavigationDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
+import com.huanchengfly.tieba.post.ui.widgets.compose.ContentCardTopBar
 import com.huanchengfly.tieba.post.ui.widgets.compose.LocalSnackbarHostState
 import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
 import com.huanchengfly.tieba.post.ui.widgets.compose.PagerTabIndicator
-import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.PromptDialog
 import com.huanchengfly.tieba.post.ui.widgets.compose.TabRow
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.ui.widgets.compose.states.StateScreen
 import com.huanchengfly.tieba.post.utils.GsonUtil
@@ -113,55 +116,59 @@ fun BlockListPage(
         initial = false
     )
     MyScaffold(
-        backgroundColor = Color.Transparent,
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
+        contentColor = ExtendedTheme.colors.text,
         topBar = {
-            TitleCentredToolbar(
-                title = {
-                    Text(
-                        text = stringResource(id = R.string.title_block_list),
-                        fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6
-                    )
-                },
-                navigationIcon = {
-                    BackNavigationIcon(onBackPressed = { navigator.navigateUp() })
-                },
-                content = {
-                    TabRow(
-                        selectedTabIndex = pagerState.currentPage,
-                        indicator = { tabPositions ->
-                            PagerTabIndicator(
-                                pagerState = pagerState,
-                                tabPositions = tabPositions
+            ContentCardTopBar {
+                TitleCentredToolbar(
+                    insets = false,
+                    title = {
+                        Text(
+                            text = stringResource(id = R.string.title_block_list),
+                            fontWeight = FontWeight.Bold, style = MaterialTheme.typography.h6
+                        )
+                    },
+                    navigationIcon = {
+                        BackNavigationIcon(onBackPressed = { navigator.navigateUp() })
+                    },
+                    content = {
+                        TabRow(
+                            selectedTabIndex = pagerState.currentPage,
+                            indicator = { tabPositions ->
+                                PagerTabIndicator(
+                                    pagerState = pagerState,
+                                    tabPositions = tabPositions
+                                )
+                            },
+                            divider = {},
+                            backgroundColor = Color.Transparent,
+                            contentColor = ExtendedTheme.colors.onTopBar,
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .width(84.dp * 2),
+                        ) {
+                            Tab(
+                                selected = pagerState.currentPage == 0,
+                                onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
+                                text = { Text(text = stringResource(id = R.string.title_black_list)) },
                             )
-                        },
-                        divider = {},
-                        backgroundColor = Color.Transparent,
-                        contentColor = ExtendedTheme.colors.onTopBar,
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .width(84.dp * 2),
-                    ) {
-                        Tab(
-                            selected = pagerState.currentPage == 0,
-                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(0) } },
-                            text = { Text(text = stringResource(id = R.string.title_black_list)) },
-                        )
-                        Tab(
-                            selected = pagerState.currentPage == 1,
-                            onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
-                            text = { Text(text = stringResource(id = R.string.title_white_list)) },
-                        )
+                            Tab(
+                                selected = pagerState.currentPage == 1,
+                                onClick = { coroutineScope.launch { pagerState.animateScrollToPage(1) } },
+                                text = { Text(text = stringResource(id = R.string.title_white_list)) },
+                            )
+                        }
                     }
-                }
-            )
+                )
+            }
         },
         bottomBar = {
-            Column {
-                BottomNavigationDivider()
+            Column(Modifier.navigationBarsPadding()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .contentCard()
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.Center,
@@ -247,19 +254,22 @@ fun BlockListPage(
                 },
                 modifier = Modifier.fillMaxSize()
             ) {
-                MyLazyColumn(Modifier.fillMaxSize()) {
+                MyLazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 4.dp)) {
                     items(items, key = { it.id }) {
-                        LongClickMenu(menuContent = {
-                            DropdownMenuItem(onClick = {
-                                viewModel.send(
-                                    BlockListUiIntent.Delete(
-                                        it.id
+                        LongClickMenu(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard(),
+                            menuContent = {
+                                DropdownMenuItem(onClick = {
+                                    viewModel.send(
+                                        BlockListUiIntent.Delete(
+                                            it.id
+                                        )
                                     )
-                                )
-                            }) {
-                                Text(text = stringResource(id = R.string.title_delete))
+                                }) {
+                                    Text(text = stringResource(id = R.string.title_delete))
+                                }
                             }
-                        }) {
+                        ) {
                             BlockItem(item = it)
                         }
                     }
@@ -272,7 +282,7 @@ fun BlockListPage(
 @Composable
 private fun BlockItemPlaceholder() {
     Row(
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard().padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(

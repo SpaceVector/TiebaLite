@@ -5,8 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -17,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.huanchengfly.tieba.post.R
@@ -33,7 +38,6 @@ import com.huanchengfly.tieba.post.ui.page.destinations.ForumPageDestination
 import com.huanchengfly.tieba.post.ui.page.destinations.ThreadPageDestination
 import com.huanchengfly.tieba.post.ui.page.thread.ThreadPageFrom
 import com.huanchengfly.tieba.post.ui.widgets.compose.Avatar
-import com.huanchengfly.tieba.post.ui.widgets.compose.Chip
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoad
 import com.huanchengfly.tieba.post.ui.widgets.compose.LoadMoreLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.LocalSnackbarHostState
@@ -41,6 +45,8 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.LongClickMenu
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyLazyColumn
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.UserHeader
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberMenuState
 import com.huanchengfly.tieba.post.utils.DateTimeUtils
 import com.huanchengfly.tieba.post.utils.HistoryUtil
@@ -108,19 +114,25 @@ fun HistoryListPage(
             MyLazyColumn(
                 modifier = Modifier
                     .fillMaxSize(),
-                state = lazyListState
+                state = lazyListState,
+                contentPadding = PaddingValues(
+                    top = 4.dp,
+                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 12.dp,
+                ),
             ) {
                 if (todayHistoryData.isNotEmpty()) {
                     stickyHeader(key = "TodayHistoryHeader") {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ExtendedTheme.colors.background)
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .background(ExtendedTheme.colors.contentPageBackground)
+                                .padding(horizontal = 28.dp, vertical = 12.dp)
                         ) {
-                            Chip(
+                            Text(
                                 text = stringResource(id = R.string.title_history_today),
-                                invertColor = true
+                                color = ExtendedTheme.colors.textSecondary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
                             )
                         }
                     }
@@ -161,10 +173,15 @@ fun HistoryListPage(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(ExtendedTheme.colors.background)
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .background(ExtendedTheme.colors.contentPageBackground)
+                                .padding(horizontal = 28.dp, vertical = 12.dp)
                         ) {
-                            Chip(text = stringResource(id = R.string.title_history_before))
+                            Text(
+                                text = stringResource(id = R.string.title_history_before),
+                                color = ExtendedTheme.colors.textSecondary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
                         }
                     }
                     items(
@@ -213,6 +230,7 @@ private fun HistoryItem(
 ) {
     val menuState = rememberMenuState()
     LongClickMenu(
+        modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp).contentCard(),
         menuContent = {
             DropdownMenuItem(onClick = {
                 onDelete(info)
@@ -225,8 +243,7 @@ private fun HistoryItem(
         onClick = { onClick(info) }
     ) {
         Column(
-            modifier = modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             UserHeader(

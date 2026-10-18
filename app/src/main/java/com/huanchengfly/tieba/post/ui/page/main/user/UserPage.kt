@@ -34,7 +34,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -64,7 +63,9 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.HorizontalDivider
 import com.huanchengfly.tieba.post.ui.widgets.compose.ListMenuItem
 import com.huanchengfly.tieba.post.ui.widgets.compose.Sizes
 import com.huanchengfly.tieba.post.ui.widgets.compose.Switch
-import com.huanchengfly.tieba.post.ui.widgets.compose.VerticalDivider
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentCard
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentInsetBackground
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.huanchengfly.tieba.post.ui.widgets.compose.loadingPlaceholder
 import com.huanchengfly.tieba.post.ui.widgets.compose.rememberDialogState
 import com.huanchengfly.tieba.post.utils.CuidUtils
@@ -75,19 +76,19 @@ import com.huanchengfly.tieba.post.utils.appPreferences
 @Composable
 private fun StatCardPlaceholder(modifier: Modifier = Modifier) {
     Row(
-        modifier = modifier.loadingPlaceholder(visible = true, color = ExtendedTheme.colors.chip),
+        modifier = modifier.loadingPlaceholder(visible = true, color = ExtendedTheme.colors.contentInsetBackground),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         StatCardItem(
             statNum = 0,
             statText = stringResource(id = R.string.text_stat_follow)
         )
-        HorizontalDivider(color = Color(if (ExtendedTheme.colors.isNightMode) 0xFF808080 else 0xFFDEDEDE))
+        HorizontalDivider(color = ExtendedTheme.colors.text.copy(alpha = 0.1f))
         StatCardItem(
             statNum = 0,
             statText = stringResource(id = R.string.text_stat_fans)
         )
-        HorizontalDivider(color = Color(if (ExtendedTheme.colors.isNightMode) 0xFF808080 else 0xFFDEDEDE))
+        HorizontalDivider(color = ExtendedTheme.colors.text.copy(alpha = 0.1f))
         StatCardItem(
             statNum = 0,
             statText = stringResource(id = R.string.title_stat_posts_num)
@@ -111,12 +112,12 @@ private fun StatCard(
             statNum = concernNum,
             statText = stringResource(id = R.string.text_stat_follow)
         )
-        HorizontalDivider(color = Color(if (ExtendedTheme.colors.isNightMode) 0xFF808080 else 0xFFDEDEDE))
+        HorizontalDivider(color = ExtendedTheme.colors.text.copy(alpha = 0.1f))
         StatCardItem(
             statNum = fansNum,
             statText = stringResource(id = R.string.text_stat_fans)
         )
-        HorizontalDivider(color = Color(if (ExtendedTheme.colors.isNightMode) 0xFF808080 else 0xFFDEDEDE))
+        HorizontalDivider(color = ExtendedTheme.colors.text.copy(alpha = 0.1f))
         StatCardItem(
             statNum = postNum,
             statText = stringResource(id = R.string.title_stat_posts_num)
@@ -264,7 +265,8 @@ fun UserPage(
     }
 
     Scaffold(
-        backgroundColor = Color.Transparent,
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
+        contentColor = ExtendedTheme.colors.text,
         modifier = Modifier
             .statusBarsPadding()
             .fillMaxSize()
@@ -282,115 +284,121 @@ fun UserPage(
                 modifier = Modifier
                     .verticalScroll(state = rememberScrollState())
                     .fillMaxSize()
-                    .padding(bottom = LocalMainNavigationBottomPadding.current)
+                    .padding(bottom = LocalMainNavigationBottomPadding.current + 8.dp)
             ) {
-                if (account != null) {
-                    InfoCard(
-                        modifier = Modifier
-                            .padding(top = 8.dp)
-                            .clickable {
-                                navigator.navigate(UserProfilePageDestination(account!!.uid.toLong()))
-                            }
-                            .padding(horizontal = 16.dp, vertical = 16.dp),
-                        userName = account!!.nameShow ?: account!!.name,
-                        userIntro = account!!.intro ?: stringResource(id = R.string.tip_no_intro),
-                        avatar = StringUtil.getAvatarUrl(account!!.portrait),
-                    )
-                    StatCard(
-                        account = account!!,
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(color = ExtendedTheme.colors.chip)
-                            .padding(vertical = 18.dp)
-                    )
-                } else if (isLoading) {
-                    InfoCard(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
-                            .padding(top = 8.dp),
-                        isPlaceholder = true,
-                    )
-                    StatCardPlaceholder(
-                        modifier = Modifier
-                            .padding(16.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(color = ExtendedTheme.colors.chip)
-                            .padding(vertical = 18.dp)
-                    )
-                } else {
-                    LoginTipCard(
-                        modifier = Modifier
-                            .padding(horizontal = 16.dp, vertical = 16.dp)
-                            .padding(top = 8.dp),
-                    )
-                }
-                if (account != null) {
-                    ListMenuItem(
-                        icon = ImageVector.vectorResource(id = R.drawable.ic_favorite),
-                        text = stringResource(id = R.string.title_my_collect),
-                        onClick = {
-                            navigator.navigate(ThreadStorePageDestination)
-                        }
-                    )
-                }
-                ListMenuItem(
-                    icon = ImageVector.vectorResource(id = R.drawable.ic_outline_watch_later_24),
-                    text = stringResource(id = R.string.title_history),
-                    onClick = {
-                        navigator.navigate(HistoryPageDestination)
-                    }
-                )
-                ListMenuItem(
-                    icon = ImageVector.vectorResource(id = R.drawable.ic_brush_24),
-                    text = stringResource(id = R.string.title_theme),
-                    onClick = {
-                        navigator.navigate(AppThemePageDestination)
-                    }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 4.dp)
+                        .contentCard()
                 ) {
-                    Text(
-                        text = stringResource(id = R.string.my_info_night),
-                        color = ExtendedTheme.colors.textSecondary,
-                        fontSize = 12.sp,
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Switch(
-                        checked = ThemeUtil.isNightMode(ThemeUtil.themeState.value),
-                        onCheckedChange = {
-                            if (context.appPreferences.followSystemNight) {
-                                switchToNightDialogState.show()
-                            } else {
-                                ThemeUtil.switchNightMode()
+                    val statsModifier = Modifier
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(ExtendedTheme.colors.contentInsetBackground)
+                        .padding(vertical = 18.dp)
+                    if (account != null) {
+                        InfoCard(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    navigator.navigate(UserProfilePageDestination(account!!.uid.toLong()))
+                                }
+                                .padding(16.dp),
+                            userName = account!!.nameShow ?: account!!.name,
+                            userIntro = account!!.intro ?: stringResource(id = R.string.tip_no_intro),
+                            avatar = StringUtil.getAvatarUrl(account!!.portrait),
+                        )
+                        StatCard(account = account!!, modifier = statsModifier)
+                    } else if (isLoading) {
+                        InfoCard(
+                            modifier = Modifier.fillMaxWidth().padding(16.dp),
+                            isPlaceholder = true,
+                        )
+                        StatCardPlaceholder(modifier = statsModifier)
+                    } else {
+                        LoginTipCard(modifier = Modifier.fillMaxWidth().padding(16.dp))
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .contentCard()
+                        .padding(vertical = 4.dp)
+                ) {
+                    if (account != null) {
+                        ListMenuItem(
+                            icon = ImageVector.vectorResource(id = R.drawable.ic_favorite),
+                            text = stringResource(id = R.string.title_my_collect),
+                            onClick = {
+                                navigator.navigate(ThreadStorePageDestination)
                             }
+                        )
+                    }
+                    ListMenuItem(
+                        icon = ImageVector.vectorResource(id = R.drawable.ic_outline_watch_later_24),
+                        text = stringResource(id = R.string.title_history),
+                        onClick = {
+                            navigator.navigate(HistoryPageDestination)
                         }
                     )
-                }
-                if (account != null) {
                     ListMenuItem(
-                        icon = ImageVector.vectorResource(id = R.drawable.ic_help_outline_black_24),
-                        text = stringResource(id = R.string.my_info_service_center),
+                        icon = ImageVector.vectorResource(id = R.drawable.ic_brush_24),
+                        text = stringResource(id = R.string.title_theme),
                         onClick = {
-                            navigator.navigate(
-                                WebViewPageDestination(
-                                    initialUrl = "https://tieba.baidu.com/mo/q/hybrid-main-service/uegServiceCenter?cuid=${CuidUtils.getNewCuid()}&cuid_galaxy2=${CuidUtils.getNewCuid()}&cuid_gid=&timestamp=${System.currentTimeMillis()}&_client_version=12.52.1.0&nohead=1"
+                            navigator.navigate(AppThemePageDestination)
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(id = R.string.my_info_night),
+                            color = ExtendedTheme.colors.textSecondary,
+                            fontSize = 12.sp,
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Switch(
+                            checked = ThemeUtil.isNightMode(ThemeUtil.themeState.value),
+                            onCheckedChange = {
+                                if (context.appPreferences.followSystemNight) {
+                                    switchToNightDialogState.show()
+                                } else {
+                                    ThemeUtil.switchNightMode()
+                                }
+                            }
+                        )
+                    }
+                    if (account != null) {
+                        ListMenuItem(
+                            icon = ImageVector.vectorResource(id = R.drawable.ic_help_outline_black_24),
+                            text = stringResource(id = R.string.my_info_service_center),
+                            onClick = {
+                                navigator.navigate(
+                                    WebViewPageDestination(
+                                        initialUrl = "https://tieba.baidu.com/mo/q/hybrid-main-service/uegServiceCenter?cuid=${CuidUtils.getNewCuid()}&cuid_galaxy2=${CuidUtils.getNewCuid()}&cuid_gid=&timestamp=${System.currentTimeMillis()}&_client_version=12.52.1.0&nohead=1"
+                                    )
                                 )
-                            )
-                        },
+                            },
+                        )
+                    }
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                        .contentCard()
+                        .padding(vertical = 4.dp)
+                ) {
+                    ListMenuItem(
+                        icon = ImageVector.vectorResource(id = R.drawable.ic_settings_24),
+                        text = stringResource(id = R.string.my_info_settings),
+                        onClick = { navigator.navigate(SettingsPageDestination) },
+                    )
+                    ListMenuItem(
+                        icon = ImageVector.vectorResource(id = R.drawable.ic_info_black_24),
+                        text = stringResource(id = R.string.my_info_about),
+                        onClick = { navigator.navigate(AboutPageDestination) },
                     )
                 }
-                VerticalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp)
-                )
-                ListMenuItem(
-                    icon = ImageVector.vectorResource(id = R.drawable.ic_settings_24),
-                    text = stringResource(id = R.string.my_info_settings),
-                    onClick = { navigator.navigate(SettingsPageDestination) },
-                )
-                ListMenuItem(
-                    icon = ImageVector.vectorResource(id = R.drawable.ic_info_black_24),
-                    text = stringResource(id = R.string.my_info_about),
-                    onClick = { navigator.navigate(AboutPageDestination) },
-                )
             }
 
             PullRefreshIndicator(

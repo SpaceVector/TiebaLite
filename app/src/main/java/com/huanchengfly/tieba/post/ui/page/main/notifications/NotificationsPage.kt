@@ -22,6 +22,7 @@ import com.huanchengfly.tieba.post.ui.page.destinations.SearchPageDestination
 import com.huanchengfly.tieba.post.ui.page.main.notifications.list.NotificationsListPage
 import com.huanchengfly.tieba.post.ui.page.main.notifications.list.NotificationsType
 import com.huanchengfly.tieba.post.ui.widgets.compose.ActionItem
+import com.huanchengfly.tieba.post.ui.widgets.compose.FloatingContentCardLayout
 import com.huanchengfly.tieba.post.ui.widgets.compose.BackNavigationIcon
 import com.huanchengfly.tieba.post.ui.widgets.compose.LazyLoadHorizontalPager
 import com.huanchengfly.tieba.post.ui.widgets.compose.MyScaffold
@@ -30,6 +31,7 @@ import com.huanchengfly.tieba.post.ui.widgets.compose.TabRow
 import com.huanchengfly.tieba.post.ui.widgets.compose.TitleCentredToolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.Toolbar
 import com.huanchengfly.tieba.post.ui.widgets.compose.accountNavIconIfCompact
+import com.huanchengfly.tieba.post.ui.widgets.compose.contentPageBackground
 import com.ramcosta.composedestinations.annotation.DeepLink
 import com.ramcosta.composedestinations.annotation.Destination
 import com.ramcosta.composedestinations.navigation.DestinationsNavigator
@@ -60,15 +62,100 @@ fun NotificationsPage(
     val coroutineScope = rememberCoroutineScope()
     ProvideNavigator(navigator = navigator) {
         MyScaffold(
-            backgroundColor = Color.Transparent,
-            topBar = {
-                TitleCentredToolbar(
-                    title = { Text(text = stringResource(id = R.string.title_notifications)) },
-                    navigationIcon = {
-                        BackNavigationIcon {
-                            navigator.navigateUp()
+            backgroundColor = ExtendedTheme.colors.contentPageBackground,
+            contentColor = ExtendedTheme.colors.text,
+            modifier = Modifier.fillMaxSize(),
+        ) { paddingValues ->
+            FloatingContentCardLayout(
+                topBar = {
+                    TitleCentredToolbar(
+                        insets = false,
+                        title = { Text(text = stringResource(id = R.string.title_notifications)) },
+                        navigationIcon = {
+                            BackNavigationIcon {
+                                navigator.navigateUp()
+                            }
+                        }
+                    ) {
+                        TabRow(
+                            selectedTabIndex = pagerState.currentPage,
+                            indicator = { tabPositions ->
+                                PagerTabIndicator(
+                                    pagerState = pagerState,
+                                    tabPositions = tabPositions
+                                )
+                            },
+                            divider = {},
+                            backgroundColor = Color.Transparent,
+                            contentColor = ExtendedTheme.colors.onTopBar,
+                        ) {
+                            pages.forEachIndexed { index, pair ->
+                                Tab(
+                                    text = { Text(text = pair.first) },
+                                    selected = pagerState.currentPage == index,
+                                    onClick = {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(index)
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
+                },
+            ) {
+                LazyLoadHorizontalPager(
+                    state = pagerState,
+                    contentPadding = paddingValues,
+                    key = { pages[it].first },
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.Top,
+                    userScrollEnabled = true,
+                ) {
+                    pages[it].second()
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun NotificationsPage(
+    initialTab: Int = 0,
+) {
+    val navigator = LocalNavigator.current
+    val pages = listOf<Pair<String, (@Composable () -> Unit)>>(
+        stringResource(id = R.string.title_reply_me) to @Composable {
+            NotificationsListPage(type = NotificationsType.ReplyMe)
+        },
+        stringResource(id = R.string.title_at_me) to @Composable {
+            NotificationsListPage(type = NotificationsType.AtMe)
+        }
+    )
+    val pagerState = rememberPagerState(
+        initialPage = initialTab,
+    ) { pages.size }
+    val coroutineScope = rememberCoroutineScope()
+    Scaffold(
+        backgroundColor = ExtendedTheme.colors.contentPageBackground,
+        contentColor = ExtendedTheme.colors.text,
+        modifier = Modifier.fillMaxSize(),
+    ) { paddingValues ->
+        FloatingContentCardLayout(
+            topBar = {
+                Toolbar(
+                    insets = false,
+                    title = stringResource(id = R.string.title_notifications),
+                    navigationIcon = accountNavIconIfCompact(),
+                    actions = {
+                        ActionItem(
+                            icon = Icons.Rounded.Search,
+                            contentDescription = stringResource(id = R.string.title_search)
+                        ) {
+                            navigator.navigate(SearchPageDestination)
+                        }
+                    },
                 ) {
                     TabRow(
                         selectedTabIndex = pagerState.currentPage,
@@ -96,8 +183,7 @@ fun NotificationsPage(
                     }
                 }
             },
-            modifier = Modifier.fillMaxSize(),
-        ) { paddingValues ->
+        ) {
             LazyLoadHorizontalPager(
                 state = pagerState,
                 contentPadding = paddingValues,
@@ -108,80 +194,6 @@ fun NotificationsPage(
             ) {
                 pages[it].second()
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-fun NotificationsPage(
-    initialTab: Int = 0,
-) {
-    val navigator = LocalNavigator.current
-    val pages = listOf<Pair<String, (@Composable () -> Unit)>>(
-        stringResource(id = R.string.title_reply_me) to @Composable {
-            NotificationsListPage(type = NotificationsType.ReplyMe)
-        },
-        stringResource(id = R.string.title_at_me) to @Composable {
-            NotificationsListPage(type = NotificationsType.AtMe)
-        }
-    )
-    val pagerState = rememberPagerState(
-        initialPage = initialTab,
-    ) { pages.size }
-    val coroutineScope = rememberCoroutineScope()
-    Scaffold(
-        backgroundColor = Color.Transparent,
-        topBar = {
-            Toolbar(
-                title = stringResource(id = R.string.title_notifications),
-                navigationIcon = accountNavIconIfCompact(),
-                actions = {
-                    ActionItem(
-                        icon = Icons.Rounded.Search,
-                        contentDescription = stringResource(id = R.string.title_search)
-                    ) {
-                        navigator.navigate(SearchPageDestination)
-                    }
-                },
-            ) {
-                TabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    indicator = { tabPositions ->
-                        PagerTabIndicator(
-                            pagerState = pagerState,
-                            tabPositions = tabPositions
-                        )
-                    },
-                    divider = {},
-                    backgroundColor = Color.Transparent,
-                    contentColor = ExtendedTheme.colors.onTopBar,
-                ) {
-                    pages.forEachIndexed { index, pair -> 
-                        Tab(
-                            text = { Text(text = pair.first) },
-                            selected = pagerState.currentPage == index,
-                            onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
-                                }
-                            },
-                        )
-                    }
-                }
-            }
-        },
-        modifier = Modifier.fillMaxSize(),
-    ) { paddingValues ->
-        LazyLoadHorizontalPager(
-            state = pagerState,
-            contentPadding = paddingValues,
-            key = { pages[it].first },
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.Top,
-            userScrollEnabled = true,
-        ) {
-            pages[it].second()
         }
     }
 }

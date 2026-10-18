@@ -281,6 +281,7 @@ fun Toolbar(
     title: String,
     navigationIcon: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
+    insets: Boolean = true,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     Toolbar(
@@ -289,6 +290,7 @@ fun Toolbar(
         },
         navigationIcon = navigationIcon,
         actions = actions,
+        insets = insets,
         content = content
     )
 }
@@ -300,6 +302,7 @@ fun Toolbar(
     actions: @Composable RowScope.() -> Unit = {},
     backgroundColor: Color = ExtendedTheme.colors.topBar,
     contentColor: Color = ExtendedTheme.colors.onTopBar,
+    insets: Boolean = true,
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     TopAppBarContainer(
@@ -325,6 +328,7 @@ fun Toolbar(
                 elevation = 0.dp
             )
         },
+        insets = insets,
         content = content
     )
 }
