@@ -7,3 +7,5 @@ Debug 包使用独立包名 `com.huanchengfly.tieba.post.debug`，桌面名称�
 恢复版本时应核对源码提交与 APK 版本号，不要直接安装 `build/outputs` 中残留的历史包。
 
 Release 仅使用 `keystore.properties` 指定的固定专用密钥，不再回退到自动生成的 debug 密钥；未配置时只能构建未签名 APK，`4.0-dev` 的 CI 发布会直接失败。Debug 测试包仍使用本机 debug 密钥，不改变现有测试安装的签名。固定 Release 证书及 CI 配置见 `.github/RELEASING.md`。
+
+签名属性仅供 Gradle 读取，不参与 SweetProperty 应用常量生成，防止密码进入调试包或编译产物。

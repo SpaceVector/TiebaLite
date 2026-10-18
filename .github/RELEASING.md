@@ -43,6 +43,8 @@ Release 已取消 debug 签名回退。PR 或未配置密钥的其他分支可�
 
 所有自动构建只能从上述 Secrets 还原同一份密钥，禁止每次运行 `keytool -genkeypair` 或回退到 debug 签名。密钥丢失时必须从备份恢复，不能重新生成同名文件替代。不要提交密钥文件、密码或 `keystore.properties`。
 
+`keystore.properties` 仅由应用的 Gradle 构建脚本通过 `java.util.Properties` 读取，不参与 SweetProperty 代码生成，避免签名密码成为应用常量。
+
 ## 本地检查
 
 在仓库根目录运行 `python3 -m unittest discover -s .github -p 'test_*.py' -v`。测试使用临时 Git 仓库、模拟的 `gh` 和公开证书测试数据，不读取真实私钥，也不会创建远程标签、上传文件或发布 Release。

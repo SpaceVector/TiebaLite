@@ -1,6 +1,7 @@
 """Offline certificate checks; no real private keys are used by these tests."""
 
 import hashlib
+from pathlib import Path
 import subprocess
 import unittest
 from unittest.mock import patch
@@ -9,6 +10,13 @@ import verify_signing
 
 
 class VerifySigningTest(unittest.TestCase):
+    def test_private_signing_properties_are_not_generated_as_app_constants(self):
+        root = Path(__file__).resolve().parent.parent
+        settings = (root / "settings.gradle.kts").read_text()
+        app_build = (root / "app/build.gradle.kts").read_text()
+        self.assertNotIn('"keystore.properties"', settings)
+        self.assertNotIn("property.keystore.", app_build)
+
     def test_only_fixed_release_certificate_is_accepted(self):
         expected = verify_signing.EXPECTED_CERTIFICATE_SHA256
         verify_signing.require_pinned_certificate([expected])

@@ -1,4 +1,5 @@
 import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+import java.util.Properties
 
 plugins {
     autowire(libs.plugins.com.android.application)
@@ -10,6 +11,15 @@ plugins {
     autowire(libs.plugins.kotlin.ksp)
     autowire(libs.plugins.com.squareup.wire)
 }
+
+// Keep signing secrets out of SweetProperty-generated application constants.
+val signingProperties = Properties().apply {
+    val propertiesFile = rootProject.file("keystore.properties")
+    if (propertiesFile.isFile) {
+        propertiesFile.inputStream().use { load(it) }
+    }
+}
+val releaseKeystorePath = signingProperties.getProperty("keystore.file", "")
 
 val sha: String? = System.getenv("GITHUB_SHA")
 val isCI: String? = System.getenv("CI")
@@ -54,12 +64,12 @@ android {
         compose = true
     }
     signingConfigs {
-        if (property.keystore.file.isNotBlank()) {
+        if (releaseKeystorePath.isNotBlank()) {
             create("config") {
-                storeFile = rootProject.file(property.keystore.file)
-                storePassword = property.keystore.password
-                keyAlias = property.keystore.key.alias
-                keyPassword = property.keystore.key.password
+                storeFile = rootProject.file(releaseKeystorePath)
+                storePassword = signingProperties.getProperty("keystore.password")
+                keyAlias = signingProperties.getProperty("keystore.key.alias")
+                keyPassword = signingProperties.getProperty("keystore.key.password")
                 enableV1Signing = true
                 enableV2Signing = true
                 enableV3Signing = true
